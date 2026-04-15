@@ -44,6 +44,7 @@ typedef struct TableIndexCache {
     int schema_count;
     int id_index_column;
     long next_id;
+    FILE *append_fp;
     int ready;
     struct TableIndexCache *next;
 } TableIndexCache;
@@ -75,6 +76,8 @@ static int build_row_in_schema_order(const ColDef *schema, int schema_count,
                                      char **columns, char **values, int count,
                                      char ***out_row);
 static int append_csv_row(const char *table_path, char **row, int row_count);
+static int append_csv_row_cached(TableIndexCache *cache, const char *table_path,
+                                 char **row, int row_count);
 static int write_csv_row(FILE *fp, char **row, int row_count);
 static int write_csv_field(FILE *fp, const char *value);
 static int validate_delete_clause(const ColDef *schema, int schema_count,
@@ -140,6 +143,7 @@ static void invalidate_table_index_cache(const char *table);
 static TableSchemaCache *find_table_schema_cache(const char *table);
 static void free_table_schema_cache(TableSchemaCache *cache);
 static void invalidate_table_schema_cache(const char *table);
+static void flush_table_append_file(const char *table);
 static int read_file_version(const char *path,
                              long long *size_out,
                              long long *mtime_sec_out,
@@ -238,7 +242,7 @@ int storage_insert(const char *table, char **columns, char **values, int count)
         goto cleanup;
     }
 
-    status = append_csv_row(table_path, row, schema_count);
+    status = append_csv_row_cached(cache, table_path, row, schema_count);
     if (status == 0 && cache != NULL && cache_insert_row(cache, row) != 0) {
         /* 파일 append 는 이미 끝났으니, 캐시는 버리고 다음 쿼리에서 다시 rebuild 한다. */
         invalidate_table_index_cache(table);
@@ -264,6 +268,8 @@ int storage_delete(const char *table, ParsedSQL *sql)
     if (validate_delete_input(table, sql) != 0) {
         return -1;
     }
+
+    flush_table_append_file(table);
 
     if (build_schema_path(table, schema_path, sizeof(schema_path)) != 0) {
         return -1;
@@ -365,13 +371,22 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
     }
 
     if (!used_index) {
-        if (load_table_rows(table_path, schema_count, &rows) != 0) {
-            fprintf(stderr, "[storage] SELECT: cannot read table '%s'\n", table);
-            goto cleanup;
-        }
+        if (path_exists(table_path) &&
+            ensure_table_index_cache(table, table_path, schema, schema_count, &cache) == 0 &&
+            cache != NULL) {
+            if (collect_matching_rows(sql, schema, schema_count, &cache->rows, &selection) != 0) {
+                goto cleanup;
+            }
+        } else {
+            flush_table_append_file(table);
+            if (load_table_rows(table_path, schema_count, &rows) != 0) {
+                fprintf(stderr, "[storage] SELECT: cannot read table '%s'\n", table);
+                goto cleanup;
+            }
 
-        if (collect_matching_rows(sql, schema, schema_count, &rows, &selection) != 0) {
-            goto cleanup;
+            if (collect_matching_rows(sql, schema, schema_count, &rows, &selection) != 0) {
+                goto cleanup;
+            }
         }
     }
 
@@ -429,6 +444,8 @@ int storage_update(const char *table, ParsedSQL *sql)
     if (validate_update_input(table, sql) != 0) {
         return -1;
     }
+
+    flush_table_append_file(table);
 
     if (build_schema_path(table, schema_path, sizeof(schema_path)) != 0) {
         return -1;
@@ -987,6 +1004,33 @@ static int append_csv_row(const char *table_path, char **row, int row_count)
 /* 입력: 출력 파일 포인터, row 배열, row 길이
  * 동작: 각 field를 CSV 규칙에 맞게 써서 row 한 줄 생성
  * 반환: 직렬화 성공 0, 쓰기 실패 -1 */
+static int append_csv_row_cached(TableIndexCache *cache, const char *table_path,
+                                 char **row, int row_count)
+{
+    int status;
+
+    if (cache == NULL) {
+        return append_csv_row(table_path, row, row_count);
+    }
+
+    if (cache->append_fp == NULL) {
+        cache->append_fp = fopen(table_path, "a");
+        if (cache->append_fp == NULL) {
+            return -1;
+        }
+        setvbuf(cache->append_fp, NULL, _IOFBF, 1 << 20);
+    }
+
+    status = write_csv_row(cache->append_fp, row, row_count);
+    if (status != 0) {
+        fclose(cache->append_fp);
+        cache->append_fp = NULL;
+        return -1;
+    }
+
+    return 0;
+}
+
 static int write_csv_row(FILE *fp, char **row, int row_count)
 {
     int i;
@@ -2207,19 +2251,13 @@ static int ensure_storage_directories(void)
 
 static int path_exists(const char *path)
 {
-    FILE *fp;
+    STAT_STRUCT st;
 
     if (path == NULL || path[0] == '\0') {
         return 0;
     }
 
-    fp = fopen(path, "r");
-    if (fp == NULL) {
-        return 0;
-    }
-
-    fclose(fp);
-    return 1;
+    return STAT_FUNC(path, &st) == 0;
 }
 
 static int parse_schema_definition(const char *text, char *name_out, size_t name_size,
@@ -2392,6 +2430,11 @@ static void reset_table_index_cache(TableIndexCache *cache)
         return;
     }
 
+    if (cache->append_fp != NULL) {
+        fflush(cache->append_fp);
+        fclose(cache->append_fp);
+        cache->append_fp = NULL;
+    }
     bptree_destroy(cache->id_index);
     cache->id_index = NULL;
     free_row_buffer(&cache->rows, 1);
@@ -2472,6 +2515,20 @@ static void invalidate_table_schema_cache(const char *table)
         }
         prev = cursor;
         cursor = cursor->next;
+    }
+}
+
+static void flush_table_append_file(const char *table)
+{
+    TableIndexCache *cache;
+
+    if (table == NULL || table[0] == '\0') {
+        return;
+    }
+
+    cache = find_table_index_cache(table);
+    if (cache != NULL && cache->append_fp != NULL) {
+        fflush(cache->append_fp);
     }
 }
 
