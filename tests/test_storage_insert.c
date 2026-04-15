@@ -118,9 +118,11 @@ static void remove_dir_if_exists(const char *path)
 
 static int reset_test_environment(void)
 {
+    remove_file_if_exists("data/tables/bench_users.csv");
     remove_file_if_exists("data/tables/events.csv");
     remove_file_if_exists("data/tables/quotes.csv");
     remove_file_if_exists("data/tables/users.csv");
+    remove_file_if_exists("data/schema/bench_users.schema");
     remove_file_if_exists("data/schema/events.schema");
     remove_file_if_exists("data/schema/quotes.schema");
     remove_file_if_exists("data/schema/users.schema");

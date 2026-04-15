@@ -146,6 +146,7 @@ static void remove_dir_if_exists(const char *path)
 
 static int reset_test_environment(void)
 {
+    remove_file_if_exists("data/tables/bench_users.csv");
     remove_file_if_exists("data/tables/broken.csv");
     remove_file_if_exists("data/tables/dates.csv");
     remove_file_if_exists("data/tables/events.csv");
@@ -160,6 +161,7 @@ static int reset_test_environment(void)
     remove_file_if_exists("data/tables/metrics.csv.tmp");
     remove_file_if_exists("data/tables/notes.csv.tmp");
     remove_file_if_exists("data/tables/users.csv.tmp");
+    remove_file_if_exists("data/schema/bench_users.schema");
     remove_file_if_exists("data/schema/broken.schema");
     remove_file_if_exists("data/schema/dates.schema");
     remove_file_if_exists("data/schema/events.schema");

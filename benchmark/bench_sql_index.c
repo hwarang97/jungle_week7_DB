@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +10,24 @@
 #define BENCH_TABLE "bench_users"
 #define ID_LOOKUPS 500
 #define NAME_LOOKUPS 500
+
+static int parse_row_count_arg(const char *text, int *out_value)
+{
+    char *end = NULL;
+    long value;
+
+    if (text == NULL || out_value == NULL) {
+        return -1;
+    }
+
+    value = strtol(text, &end, 10);
+    if (end == text || *end != '\0' || value <= 0 || value > INT_MAX) {
+        return -1;
+    }
+
+    *out_value = (int)value;
+    return 0;
+}
 
 static const char *ansi_reset(void)
 {
@@ -107,6 +126,9 @@ static int prepare_fixture(int row_count)
 
     cleanup_fixture();
     if (storage_create(BENCH_TABLE, col_defs, 3) != 0) {
+        fprintf(stderr,
+                "[bench] storage_create failed for table='%s'\n",
+                BENCH_TABLE);
         return -1;
     }
 
@@ -122,7 +144,15 @@ static int prepare_fixture(int row_count)
         values[1] = age_text;
 
         if (storage_insert(BENCH_TABLE, columns, values, 2) != 0) {
+            fprintf(stderr,
+                    "[bench] storage_insert failed at row=%d table='%s' name='%s' age='%s'\n",
+                    i, BENCH_TABLE, name_text, age_text);
             return -1;
+        }
+
+        if (i % 10000 == 0 || i == row_count) {
+            printf("[bench] fixture progress rows=%d inserted=%d\n", row_count, i);
+            fflush(stdout);
         }
     }
 
@@ -195,7 +225,7 @@ static double benchmark_name_lookup(int row_count)
     return elapsed_ms(start, end);
 }
 
-static void run_case(int row_count)
+static int run_case(int row_count)
 {
     double id_ms;
     double name_ms;
@@ -206,11 +236,18 @@ static void run_case(int row_count)
                ansi_bold(), ansi_red(), ansi_reset(),
                ansi_bold(), row_count, ansi_reset());
         cleanup_fixture();
-        return;
+        return -1;
     }
 
     id_ms = benchmark_id_lookup(row_count);
     name_ms = benchmark_name_lookup(row_count);
+    if (id_ms < 0.0 || name_ms < 0.0) {
+        fprintf(stderr,
+                "[bench] lookup benchmark failed for rows=%d id_ms=%.3f name_ms=%.3f\n",
+                row_count, id_ms, name_ms);
+        cleanup_fixture();
+        return -1;
+    }
     speedup = (id_ms > 0.0) ? (name_ms / id_ms) : 0.0;
 
     printf("\n%s%s[CASE]%s rows=%s%d%s order=%s%d%s\n",
@@ -230,12 +267,14 @@ static void run_case(int row_count)
            ansi_bold(), speedup, ansi_reset());
 
     cleanup_fixture();
+    return 0;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     int row_counts[] = {10000, 100000, 1000000};
     int i;
+    int single_row_count = 0;
 
     printf("%s%s[bench-sql-index]%s current_bptree_order=%s%d%s\n",
            ansi_bold(), ansi_cyan(), ansi_reset(),
@@ -248,8 +287,32 @@ int main(void)
            ansi_bold(), ansi_cyan(), ansi_reset(),
            ansi_bold(), ansi_reset());
 
+    if (argc >= 2) {
+        if (parse_row_count_arg(argv[1], &single_row_count) != 0) {
+            fprintf(stderr, "[bench] invalid row count: %s\n", argv[1]);
+            return 1;
+        }
+
+        if (run_case(single_row_count) != 0) {
+            fprintf(stderr,
+                    "[bench] aborted after first failure at rows=%d\n",
+                    single_row_count);
+            return 1;
+        }
+
+        printf("\n%s%s[hint]%s compare another order with %smake bench-sql-index CFLAGS=\"... -DBPTREE_ORDER=32\"%s\n",
+               ansi_bold(), ansi_cyan(), ansi_reset(),
+               ansi_bold(), ansi_reset());
+        return 0;
+    }
+
     for (i = 0; i < (int)(sizeof(row_counts) / sizeof(row_counts[0])); ++i) {
-        run_case(row_counts[i]);
+        if (run_case(row_counts[i]) != 0) {
+            fprintf(stderr,
+                    "[bench] aborted after first failure at rows=%d\n",
+                    row_counts[i]);
+            return 1;
+        }
     }
 
     printf("\n%s%s[hint]%s compare another order with %smake bench-sql-index CFLAGS=\"... -DBPTREE_ORDER=32\"%s\n",

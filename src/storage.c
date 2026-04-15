@@ -48,7 +48,18 @@ typedef struct TableIndexCache {
     struct TableIndexCache *next;
 } TableIndexCache;
 
+typedef struct TableSchemaCache {
+    char table[64];
+    ColDef *schema;
+    int schema_count;
+    long long file_size;
+    long long mtime_sec;
+    long long mtime_nsec;
+    struct TableSchemaCache *next;
+} TableSchemaCache;
+
 static TableIndexCache *g_table_index_caches = NULL;
+static TableSchemaCache *g_table_schema_caches = NULL;
 
 static int validate_insert_input(const char *table, char **values, int count);
 static int validate_delete_input(const char *table, const ParsedSQL *sql);
@@ -57,6 +68,8 @@ static int build_schema_path(const char *table, char *out, size_t size);
 static int build_table_path(const char *table, char *out, size_t size);
 static int build_temp_path(const char *table, char *out, size_t size);
 static int load_schema(const char *schema_path, ColDef **out_schema, int *out_count);
+static int load_schema_cached(const char *table, const char *schema_path,
+                              const ColDef **out_schema, int *out_count);
 static int find_schema_index(const ColDef *schema, int schema_count, const char *column);
 static int build_row_in_schema_order(const ColDef *schema, int schema_count,
                                      char **columns, char **values, int count,
@@ -124,8 +137,15 @@ static TableIndexCache *find_table_index_cache(const char *table);
 static void reset_table_index_cache(TableIndexCache *cache);
 static void free_table_index_cache(TableIndexCache *cache);
 static void invalidate_table_index_cache(const char *table);
+static TableSchemaCache *find_table_schema_cache(const char *table);
+static void free_table_schema_cache(TableSchemaCache *cache);
+static void invalidate_table_schema_cache(const char *table);
+static int read_file_version(const char *path,
+                             long long *size_out,
+                             long long *mtime_sec_out,
+                             long long *mtime_nsec_out);
 static int build_table_index_cache(TableIndexCache *cache, const char *table_path,
-                                   const ColDef *schema, int schema_count);
+                                    const ColDef *schema, int schema_count);
 static int ensure_table_index_cache(const char *table, const char *table_path,
                                     const ColDef *schema, int schema_count,
                                     TableIndexCache **out_cache);
@@ -178,7 +198,7 @@ int storage_insert(const char *table, char **columns, char **values, int count)
 {
     char schema_path[STORAGE_PATH_MAX];
     char table_path[STORAGE_PATH_MAX];
-    ColDef *schema = NULL;
+    const ColDef *schema = NULL;
     int schema_count = 0;
     TableIndexCache *cache = NULL;
     int id_key = 0;
@@ -198,7 +218,7 @@ int storage_insert(const char *table, char **columns, char **values, int count)
         return -1;
     }
 
-    if (load_schema(schema_path, &schema, &schema_count) != 0) {
+    if (load_schema_cached(table, schema_path, &schema, &schema_count) != 0) {
         return -1;
     }
 
@@ -226,7 +246,6 @@ int storage_insert(const char *table, char **columns, char **values, int count)
 
 cleanup:
     free_string_array(row, schema_count);
-    free(schema);
     return status;
 }
 
@@ -238,7 +257,7 @@ int storage_delete(const char *table, ParsedSQL *sql)
     char schema_path[STORAGE_PATH_MAX];
     char table_path[STORAGE_PATH_MAX];
     char temp_path[STORAGE_PATH_MAX];
-    ColDef *schema = NULL;
+    const ColDef *schema = NULL;
     int schema_count = 0;
     int status = -1;
 
@@ -258,7 +277,7 @@ int storage_delete(const char *table, ParsedSQL *sql)
         return -1;
     }
 
-    if (load_schema(schema_path, &schema, &schema_count) != 0) {
+    if (load_schema_cached(table, schema_path, &schema, &schema_count) != 0) {
         return -1;
     }
 
@@ -273,7 +292,6 @@ int storage_delete(const char *table, ParsedSQL *sql)
     }
 
 cleanup:
-    free(schema);
     return status;
 }
 
@@ -291,7 +309,7 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
 {
     char schema_path[STORAGE_PATH_MAX];
     char table_path[STORAGE_PATH_MAX];
-    ColDef *schema = NULL;
+    const ColDef *schema = NULL;
     int schema_count = 0;
     StorageRowBuffer rows = {0};
     StorageRowBuffer selection = {0};
@@ -317,7 +335,7 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
         return -1;
     }
 
-    if (load_schema(schema_path, &schema, &schema_count) != 0) {
+    if (load_schema_cached(table, schema_path, &schema, &schema_count) != 0) {
         fprintf(stderr, "[storage] SELECT: table '%s' not found (schema missing)\n", table);
         return -1;
     }
@@ -377,7 +395,6 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
 cleanup:
     free_row_buffer(&selection, 0);
     free_row_buffer(&rows, 1);
-    free(schema);
     return status;
 }
 
@@ -404,7 +421,7 @@ int storage_update(const char *table, ParsedSQL *sql)
     char schema_path[STORAGE_PATH_MAX];
     char table_path[STORAGE_PATH_MAX];
     char temp_path[STORAGE_PATH_MAX];
-    ColDef *schema = NULL;
+    const ColDef *schema = NULL;
     int schema_count = 0;
     int *set_indexes = NULL;
     int status = -1;
@@ -425,7 +442,7 @@ int storage_update(const char *table, ParsedSQL *sql)
         return -1;
     }
 
-    if (load_schema(schema_path, &schema, &schema_count) != 0) {
+    if (load_schema_cached(table, schema_path, &schema, &schema_count) != 0) {
         return -1;
     }
 
@@ -445,7 +462,6 @@ int storage_update(const char *table, ParsedSQL *sql)
 
 cleanup:
     free(set_indexes);
-    free(schema);
     return status;
 }
 
@@ -469,6 +485,7 @@ int storage_create(const char *table, char **col_defs, int count)
     }
 
     invalidate_table_index_cache(table);
+    invalidate_table_schema_cache(table);
 
     if (ensure_storage_directories() != 0) {
         return -1;
@@ -792,6 +809,64 @@ static int load_schema(const char *schema_path, ColDef **out_schema, int *out_co
 
     *out_schema = schema;
     *out_count = schema_count;
+    return 0;
+}
+
+static int load_schema_cached(const char *table, const char *schema_path,
+                              const ColDef **out_schema, int *out_count)
+{
+    TableSchemaCache *cache;
+    ColDef *loaded_schema = NULL;
+    int loaded_count = 0;
+    long long file_size = 0;
+    long long mtime_sec = 0;
+    long long mtime_nsec = 0;
+
+    if (table == NULL || schema_path == NULL || out_schema == NULL || out_count == NULL) {
+        return -1;
+    }
+
+    if (read_file_version(schema_path, &file_size, &mtime_sec, &mtime_nsec) != 0) {
+        invalidate_table_schema_cache(table);
+        return -1;
+    }
+
+    cache = find_table_schema_cache(table);
+    if (cache != NULL &&
+        cache->file_size == file_size &&
+        cache->mtime_sec == mtime_sec &&
+        cache->mtime_nsec == mtime_nsec) {
+        *out_schema = cache->schema;
+        *out_count = cache->schema_count;
+        return 0;
+    }
+
+    if (load_schema(schema_path, &loaded_schema, &loaded_count) != 0) {
+        return -1;
+    }
+
+    if (cache == NULL) {
+        cache = calloc(1, sizeof(*cache));
+        if (cache == NULL) {
+            free(loaded_schema);
+            return -1;
+        }
+
+        strncpy(cache->table, table, sizeof(cache->table) - 1);
+        cache->next = g_table_schema_caches;
+        g_table_schema_caches = cache;
+    } else {
+        free(cache->schema);
+    }
+
+    cache->schema = loaded_schema;
+    cache->schema_count = loaded_count;
+    cache->file_size = file_size;
+    cache->mtime_sec = mtime_sec;
+    cache->mtime_nsec = mtime_nsec;
+
+    *out_schema = cache->schema;
+    *out_count = cache->schema_count;
     return 0;
 }
 
@@ -2336,6 +2411,30 @@ static void free_table_index_cache(TableIndexCache *cache)
     free(cache);
 }
 
+static TableSchemaCache *find_table_schema_cache(const char *table)
+{
+    TableSchemaCache *cursor = g_table_schema_caches;
+
+    while (cursor != NULL) {
+        if (equals_ignore_case(cursor->table, table)) {
+            return cursor;
+        }
+        cursor = cursor->next;
+    }
+
+    return NULL;
+}
+
+static void free_table_schema_cache(TableSchemaCache *cache)
+{
+    if (cache == NULL) {
+        return;
+    }
+
+    free(cache->schema);
+    free(cache);
+}
+
 static void invalidate_table_index_cache(const char *table)
 {
     TableIndexCache *prev = NULL;
@@ -2354,6 +2453,52 @@ static void invalidate_table_index_cache(const char *table)
         prev = cursor;
         cursor = cursor->next;
     }
+}
+
+static void invalidate_table_schema_cache(const char *table)
+{
+    TableSchemaCache *prev = NULL;
+    TableSchemaCache *cursor = g_table_schema_caches;
+
+    while (cursor != NULL) {
+        if (equals_ignore_case(cursor->table, table)) {
+            if (prev == NULL) {
+                g_table_schema_caches = cursor->next;
+            } else {
+                prev->next = cursor->next;
+            }
+            free_table_schema_cache(cursor);
+            return;
+        }
+        prev = cursor;
+        cursor = cursor->next;
+    }
+}
+
+static int read_file_version(const char *path,
+                             long long *size_out,
+                             long long *mtime_sec_out,
+                             long long *mtime_nsec_out)
+{
+    STAT_STRUCT st;
+
+    if (path == NULL || size_out == NULL || mtime_sec_out == NULL || mtime_nsec_out == NULL) {
+        return -1;
+    }
+
+    if (STAT_FUNC(path, &st) != 0) {
+        return -1;
+    }
+
+    *size_out = (long long)st.st_size;
+#ifdef _WIN32
+    *mtime_sec_out = (long long)st.st_mtime;
+    *mtime_nsec_out = 0;
+#else
+    *mtime_sec_out = (long long)st.st_mtim.tv_sec;
+    *mtime_nsec_out = (long long)st.st_mtim.tv_nsec;
+#endif
+    return 0;
 }
 
 static int build_table_index_cache(TableIndexCache *cache, const char *table_path,
