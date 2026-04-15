@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 
+#define BPTREE_MAX_KEYS (BPTREE_ORDER - 1)
+
 /* 리프 노드 안에서 새 key 가 들어갈 자리를 찾는다.
  * 이미 같은 key 가 있으면 그 key 의 위치를 돌려준다.
  */
@@ -49,6 +51,93 @@ static int bptree_insert_into_leaf(BPTreeNode *leaf, int key, void *value)
     leaf->keys[index] = key;
     leaf->values[index] = value;
     leaf->key_count++;
+    return 0;
+}
+
+/* 리프가 가득 찼을 때 사용할 임시 정렬 배열을 만든다.
+ * 기존 key/value 와 새 key/value 를 한 번에 정렬해서 담아 둔다.
+ */
+static void bptree_build_leaf_temp_arrays(BPTreeNode *leaf, int key, void *value,
+                                          int temp_keys[BPTREE_ORDER],
+                                          void *temp_values[BPTREE_ORDER])
+{
+    int insert_index = bptree_find_insert_position(leaf, key);
+    int src_index = 0;
+    int dest_index;
+
+    for (dest_index = 0; dest_index < BPTREE_ORDER; dest_index++) {
+        if (dest_index == insert_index) {
+            temp_keys[dest_index] = key;
+            temp_values[dest_index] = value;
+        } else {
+            temp_keys[dest_index] = leaf->keys[src_index];
+            temp_values[dest_index] = leaf->values[src_index];
+            src_index++;
+        }
+    }
+}
+
+/* 리프 split 의 첫 단계 구현.
+ * 현재는 "리프가 루트일 때" split 해서 새 루트를 만드는 경우까지 지원한다.
+ */
+static int bptree_split_leaf(BPTree *tree, BPTreeNode *leaf, int key, void *value)
+{
+    int temp_keys[BPTREE_ORDER];
+    void *temp_values[BPTREE_ORDER];
+    BPTreeNode *new_leaf;
+    BPTreeNode *new_root;
+    int split_index = BPTREE_ORDER / 2;
+    int i;
+
+    if (!tree || !leaf || !leaf->is_leaf) {
+        return -1;
+    }
+
+    if (leaf->parent != NULL) {
+        /* 부모가 있는 일반 리프 split 은 다음 단계에서 구현한다. */
+        return -1;
+    }
+
+    bptree_build_leaf_temp_arrays(leaf, key, value, temp_keys, temp_values);
+
+    new_leaf = bptree_create_node(1);
+    if (!new_leaf) {
+        return -1;
+    }
+
+    leaf->key_count = 0;
+    for (i = 0; i < split_index; i++) {
+        leaf->keys[i] = temp_keys[i];
+        leaf->values[i] = temp_values[i];
+        leaf->key_count++;
+    }
+
+    for (i = split_index; i < BPTREE_ORDER; i++) {
+        new_leaf->keys[new_leaf->key_count] = temp_keys[i];
+        new_leaf->values[new_leaf->key_count] = temp_values[i];
+        new_leaf->key_count++;
+    }
+
+    new_leaf->next = leaf->next;
+    leaf->next = new_leaf;
+    new_leaf->parent = leaf->parent;
+
+    new_root = bptree_create_node(0);
+    if (!new_root) {
+        free(new_leaf);
+        return -1;
+    }
+
+    new_root->keys[0] = new_leaf->keys[0];
+    new_root->children[0] = leaf;
+    new_root->children[1] = new_leaf;
+    new_root->key_count = 1;
+
+    leaf->parent = new_root;
+    new_leaf->parent = new_root;
+    tree->root = new_root;
+    tree->first_leaf = leaf;
+
     return 0;
 }
 
@@ -178,7 +267,7 @@ void *bptree_search(BPTree *tree, int key)
  * 현재 단계에서는:
  * 1. key 가 들어갈 리프를 찾고
  * 2. 리프가 꽉 차지 않았으면 정렬 순서를 유지하며 삽입한다.
- * split 은 아직 다음 단계에서 구현한다.
+ * 3. 현재 단계에서는 루트 리프 split 까지 구현한다.
  */
 int bptree_insert(BPTree *tree, int key, void *value)
 {
@@ -193,5 +282,9 @@ int bptree_insert(BPTree *tree, int key, void *value)
         return -1;
     }
 
-    return bptree_insert_into_leaf(leaf, key, value);
+    if (leaf->key_count < BPTREE_MAX_KEYS) {
+        return bptree_insert_into_leaf(leaf, key, value);
+    }
+
+    return bptree_split_leaf(tree, leaf, key, value);
 }
