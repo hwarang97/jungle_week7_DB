@@ -1,194 +1,224 @@
-<svg width="960" viewBox="0 0 960 1150" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff;">
+<svg width="960" viewBox="0 0 960 1250" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff;">
+
+  <!-- order 명시 -->
+  <rect x="720" y="12" width="200" height="28" rx="14" fill="#f8f8f6" stroke="#ddd" stroke-width="0.6"/>
+  <text x="820" y="31" font-size="12" font-weight="500" fill="#555" text-anchor="middle">B+ Tree order = 4 (키 최대 3개)</text>
 
   <!-- ===== 1단계: 삽입 위치 탐색 ===== -->
 
-  <!-- 단계 배지 -->
   <circle cx="60" cy="50" r="18" fill="#185FA5"/>
   <text x="60" y="56" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">1</text>
   <text x="90" y="56" font-size="16" font-weight="600" fill="#333" text-anchor="start">삽입 위치 탐색</text>
 
-  <!-- 삽입할 키 표시 -->
-  <rect x="720" y="36" width="160" height="32" rx="16" fill="#FFF3E0" stroke="#EF9F27" stroke-width="0.8"/>
-  <text x="800" y="57" font-size="13" font-weight="500" fill="#854F0B" text-anchor="middle">삽입할 key: 25</text>
+  <!-- 삽입할 키 -->
+  <rect x="720" y="46" width="160" height="32" rx="16" fill="#FFF3E0" stroke="#EF9F27" stroke-width="0.8"/>
+  <text x="800" y="67" font-size="13" font-weight="500" fill="#854F0B" text-anchor="middle">삽입할 key: 25</text>
 
-  <!-- 루트 [30] -->
-  <rect x="420" y="85" width="80" height="40" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
-  <text x="460" y="110" font-size="14" font-weight="600" fill="#0C447C" text-anchor="middle">30</text>
+  <!-- 루트 [30 | 60] -->
+  <rect x="380" y="90" width="140" height="42" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.2"/>
+  <text x="420" y="116" font-size="14" font-weight="600" fill="#0C447C" text-anchor="middle">30</text>
+  <line x1="450" y1="90" x2="450" y2="132" stroke="#185FA5" stroke-width="0.4" opacity="0.4"/>
+  <text x="480" y="116" font-size="14" font-weight="600" fill="#0C447C" text-anchor="middle">60</text>
 
   <!-- 탐색 화살표: 25 < 30 → 왼쪽 -->
-  <line x1="440" y1="125" x2="310" y2="155" stroke="#185FA5" stroke-width="1.5"/>
-  <polygon points="310,155 318,150 316,158" fill="#185FA5"/>
-  <text x="355" y="145" font-size="11" fill="#185FA5" font-weight="500">25 &lt; 30 → 왼쪽</text>
+  <line x1="410" y1="132" x2="300" y2="168" stroke="#185FA5" stroke-width="1.5"/>
+  <polygon points="300,168 308,163 306,171" fill="#185FA5"/>
+  <text x="335" y="155" font-size="11" fill="#185FA5" font-weight="500">25 &lt; 30 → 왼쪽</text>
 
   <!-- 내부 노드 [10 | 20] -->
-  <rect x="220" y="160" width="130" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
-  <line x1="285" y1="160" x2="285" y2="200" stroke="#534AB7" stroke-width="0.4" opacity="0.4"/>
-  <text x="253" y="185" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
-  <text x="318" y="185" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
+  <rect x="200" y="175" width="140" height="42" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="240" y="201" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
+  <line x1="270" y1="175" x2="270" y2="217" stroke="#534AB7" stroke-width="0.4" opacity="0.4"/>
+  <text x="300" y="201" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
 
   <!-- 탐색 화살표: 25 > 20 → 오른쪽 자식 -->
-  <line x1="330" y1="200" x2="400" y2="230" stroke="#185FA5" stroke-width="1.5"/>
-  <polygon points="400,230 392,225 394,233" fill="#185FA5"/>
-  <text x="335" y="225" font-size="11" fill="#185FA5" font-weight="500">25 &gt; 20 → 오른쪽</text>
+  <line x1="320" y1="217" x2="380" y2="248" stroke="#185FA5" stroke-width="1.5"/>
+  <polygon points="380,248 372,243 374,251" fill="#185FA5"/>
+  <text x="325" y="243" font-size="11" fill="#185FA5" font-weight="500">25 &gt; 20 → 오른쪽</text>
 
-  <!-- 리프 노드 [20, 28] (목표 리프) -->
-  <rect x="370" y="235" width="100" height="38" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.2" stroke-dasharray="4 2"/>
-  <text x="420" y="259" font-size="13" font-weight="600" fill="#085041" text-anchor="middle">20, 28</text>
-  <text x="420" y="290" font-size="11" fill="#0F6E56" text-anchor="middle">← 삽입 대상 리프</text>
+  <!-- 리프 노드 [20, 22, 28] (목표 리프, 키 3개 = 꽉 참) -->
+  <rect x="340" y="255" width="130" height="38" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.2" stroke-dasharray="4 2"/>
+  <text x="405" y="279" font-size="13" font-weight="600" fill="#085041" text-anchor="middle">20, 22, 28</text>
+  <text x="405" y="310" font-size="11" fill="#0F6E56" text-anchor="middle">← 삽입 대상 리프 (이미 키 3개 = 꽉 참)</text>
 
   <!-- 구분선 -->
-  <line x1="40" y1="310" x2="920" y2="310" stroke="#e8e8e4" stroke-width="1"/>
+  <line x1="40" y1="335" x2="920" y2="335" stroke="#e8e8e4" stroke-width="1"/>
 
-  <!-- ===== 2단계: 리프에 정렬 삽입 ===== -->
+  <!-- ===== 2단계: 리프에 삽입 시도 → overflow ===== -->
 
-  <circle cx="60" cy="345" r="18" fill="#185FA5"/>
-  <text x="60" y="351" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">2</text>
-  <text x="90" y="351" font-size="16" font-weight="600" fill="#333" text-anchor="start">리프에 정렬 삽입</text>
+  <circle cx="60" cy="370" r="18" fill="#185FA5"/>
+  <text x="60" y="376" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+  <text x="90" y="376" font-size="16" font-weight="600" fill="#333" text-anchor="start">리프에 삽입 시도 → overflow 발생</text>
 
-  <!-- Before -->
-  <text x="240" y="390" font-size="12" fill="#888" text-anchor="middle">삽입 전</text>
-  <rect x="170" y="400" width="140" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="210" y="426" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">20</text>
-  <line x1="240" y1="400" x2="240" y2="442" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
-  <text x="270" y="426" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">28</text>
+  <!-- Before: 꽉 찬 리프 -->
+  <text x="230" y="415" font-size="12" fill="#888" text-anchor="middle">현재 리프 (키 3개 = 최대)</text>
+  <rect x="140" y="425" width="180" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="185" y="451" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">20</text>
+  <line x1="210" y1="425" x2="210" y2="467" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
+  <text x="230" y="451" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">22</text>
+  <line x1="260" y1="425" x2="260" y2="467" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
+  <text x="280" y="451" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">28</text>
 
   <!-- 화살표 -->
-  <text x="420" y="420" font-size="22" fill="#185FA5" text-anchor="middle">→</text>
-  <text x="420" y="440" font-size="11" fill="#185FA5" text-anchor="middle">25 삽입</text>
+  <text x="420" y="445" font-size="22" fill="#185FA5" text-anchor="middle">→</text>
+  <text x="420" y="465" font-size="11" fill="#185FA5" text-anchor="middle">25 삽입 시도</text>
 
-  <!-- After (overflow!) -->
-  <text x="660" y="390" font-size="12" fill="#888" text-anchor="middle">삽입 후 (overflow!)</text>
-  <rect x="560" y="400" width="200" height="42" rx="6" fill="#FCEBEB" stroke="#E24B4A" stroke-width="1.2"/>
-  <text x="610" y="426" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">20</text>
-  <line x1="636" y1="400" x2="636" y2="442" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
-  <text x="660" y="426" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">25</text>
-  <line x1="690" y1="400" x2="690" y2="442" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
-  <text x="720" y="426" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">28</text>
+  <!-- After: overflow -->
+  <text x="680" y="415" font-size="12" fill="#888" text-anchor="middle">정렬 삽입 → 키 4개 = overflow!</text>
+  <rect x="560" y="425" width="240" height="42" rx="6" fill="#FCEBEB" stroke="#E24B4A" stroke-width="1.2"/>
+  <text x="600" y="451" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">20</text>
+  <line x1="620" y1="425" x2="620" y2="467" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="640" y="451" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">22</text>
+  <line x1="660" y1="425" x2="660" y2="467" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="680" y="451" font-size="14" font-weight="600" fill="#EF9F27" text-anchor="middle">25</text>
+  <line x1="700" y1="425" x2="700" y2="467" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="760" y="451" font-size="14" font-weight="600" fill="#501313" text-anchor="middle">28</text>
 
-  <text x="660" y="465" font-size="11" fill="#E24B4A" font-weight="500" text-anchor="middle">정렬 유지 상태에서 최대 키 초과 → 분할 필요</text>
+  <text x="680" y="490" font-size="11" fill="#E24B4A" font-weight="500" text-anchor="middle">최대 3개인데 4개 → 분할 필요</text>
 
   <!-- 구분선 -->
-  <line x1="40" y1="490" x2="920" y2="490" stroke="#e8e8e4" stroke-width="1"/>
+  <line x1="40" y1="515" x2="920" y2="515" stroke="#e8e8e4" stroke-width="1"/>
 
   <!-- ===== 3단계: 리프 분할 ===== -->
 
-  <circle cx="60" cy="525" r="18" fill="#185FA5"/>
-  <text x="60" y="531" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">3</text>
-  <text x="90" y="531" font-size="16" font-weight="600" fill="#333" text-anchor="start">리프 분할 (split)</text>
+  <circle cx="60" cy="550" r="18" fill="#185FA5"/>
+  <text x="60" y="556" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+  <text x="90" y="556" font-size="16" font-weight="600" fill="#333" text-anchor="start">리프 분할 (split)</text>
 
   <!-- overflow 노드 -->
-  <text x="480" y="560" font-size="12" fill="#888" text-anchor="middle">overflow 상태</text>
-  <rect x="380" y="570" width="200" height="42" rx="6" fill="#FCEBEB" stroke="#E24B4A" stroke-width="0.8" stroke-dasharray="4 2"/>
-  <text x="430" y="596" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">20</text>
-  <line x1="456" y1="570" x2="456" y2="612" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
-  <text x="480" y="596" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">25</text>
-  <line x1="510" y1="570" x2="510" y2="612" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
-  <text x="535" y="596" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">28</text>
+  <text x="480" y="585" font-size="12" fill="#888" text-anchor="middle">overflow 상태 [20, 22, 25, 28]</text>
+  <rect x="370" y="595" width="220" height="42" rx="6" fill="#FCEBEB" stroke="#E24B4A" stroke-width="0.8" stroke-dasharray="4 2"/>
+  <text x="410" y="621" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">20</text>
+  <line x1="430" y1="595" x2="430" y2="637" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="450" y="621" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">22</text>
+  <line x1="480" y1="595" x2="480" y2="637" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="510" y="621" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">25</text>
+  <line x1="530" y1="595" x2="530" y2="637" stroke="#E24B4A" stroke-width="0.3" opacity="0.4"/>
+  <text x="550" y="621" font-size="14" font-weight="600" fill="#791F1F" text-anchor="middle">28</text>
+
+  <!-- 분할 설명 -->
+  <text x="480" y="660" font-size="11" fill="#555" text-anchor="middle">중간 지점에서 반으로 나눔</text>
 
   <!-- 분할 화살표 -->
-  <line x1="430" y1="612" x2="310" y2="660" stroke="#185FA5" stroke-width="1"/>
-  <polygon points="310,660 318,655 316,663" fill="#185FA5"/>
-  <line x1="530" y1="612" x2="610" y2="660" stroke="#185FA5" stroke-width="1"/>
-  <polygon points="610,660 602,655 604,663" fill="#185FA5"/>
-  <text x="480" y="645" font-size="12" fill="#185FA5" font-weight="500" text-anchor="middle">분할</text>
+  <line x1="420" y1="670" x2="310" y2="710" stroke="#185FA5" stroke-width="1"/>
+  <polygon points="310,710 318,705 316,713" fill="#185FA5"/>
+  <line x1="540" y1="670" x2="620" y2="710" stroke="#185FA5" stroke-width="1"/>
+  <polygon points="620,710 612,705 614,713" fill="#185FA5"/>
+  <text x="480" y="698" font-size="12" fill="#185FA5" font-weight="500" text-anchor="middle">분할</text>
 
   <!-- 왼쪽 리프 -->
-  <rect x="240" y="665" width="100" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="290" y="691" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">20</text>
-  <text x="290" y="725" font-size="11" fill="#555" text-anchor="middle">왼쪽 리프</text>
+  <rect x="220" y="715" width="120" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="260" y="741" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">20</text>
+  <line x1="280" y1="715" x2="280" y2="757" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
+  <text x="300" y="741" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">22</text>
+  <text x="280" y="775" font-size="11" fill="#555" text-anchor="middle">왼쪽 리프</text>
 
   <!-- 오른쪽 리프 -->
-  <rect x="560" y="665" width="120" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="600" y="691" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">25</text>
-  <line x1="620" y1="665" x2="620" y2="707" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
-  <text x="650" y="691" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">28</text>
-  <text x="620" y="725" font-size="11" fill="#555" text-anchor="middle">오른쪽 리프</text>
+  <rect x="570" y="715" width="120" height="42" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="610" y="741" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">25</text>
+  <line x1="630" y1="715" x2="630" y2="757" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
+  <text x="650" y="741" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">28</text>
+  <text x="630" y="775" font-size="11" fill="#555" text-anchor="middle">오른쪽 리프</text>
 
   <!-- next 포인터 -->
   <defs>
     <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
-    <marker id="arrowup" viewBox="0 0 10 10" refX="5" refY="2" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M1 8L5 2L9 8" fill="none" stroke="#EF9F27" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
   </defs>
+  <line x1="340" y1="736" x2="568" y2="736" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <text x="454" y="730" font-size="10" fill="#1D9E75" font-weight="500" text-anchor="middle">next 연결 유지</text>
 
-  <line x1="340" y1="686" x2="558" y2="686" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
-  <text x="450" y="680" font-size="10" fill="#1D9E75" font-weight="500" text-anchor="middle">next 연결 유지</text>
-
-  <!-- 부모로 올라가는 키 표시 -->
-  <line x1="600" y1="665" x2="600" y2="610" stroke="#EF9F27" stroke-width="1.2" stroke-dasharray="5 3"/>
-  <polygon points="600,610 596,618 604,618" fill="#EF9F27"/>
-  <rect x="630" y="630" width="220" height="28" rx="14" fill="#FFF3E0" stroke="#EF9F27" stroke-width="0.6"/>
-  <text x="740" y="649" font-size="11" font-weight="500" fill="#854F0B" text-anchor="middle">오른쪽 리프의 첫 key(25)를 부모로</text>
+  <!-- 부모로 올라가는 키 -->
+  <line x1="610" y1="715" x2="610" y2="665" stroke="#EF9F27" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <polygon points="610,665 606,673 614,673" fill="#EF9F27"/>
+  <rect x="640" y="685" width="240" height="28" rx="14" fill="#FFF3E0" stroke="#EF9F27" stroke-width="0.6"/>
+  <text x="760" y="704" font-size="11" font-weight="500" fill="#854F0B" text-anchor="middle">오른쪽 리프의 첫 key(25)를 부모로</text>
 
   <!-- 구분선 -->
-  <line x1="40" y1="750" x2="920" y2="750" stroke="#e8e8e4" stroke-width="1"/>
+  <line x1="40" y1="800" x2="920" y2="800" stroke="#e8e8e4" stroke-width="1"/>
 
   <!-- ===== 4단계: 부모에 separator key 반영 ===== -->
 
-  <circle cx="60" cy="785" r="18" fill="#185FA5"/>
-  <text x="60" y="791" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">4</text>
-  <text x="90" y="791" font-size="16" font-weight="600" fill="#333" text-anchor="start">부모에 separator key 반영</text>
+  <circle cx="60" cy="835" r="18" fill="#185FA5"/>
+  <text x="60" y="841" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+  <text x="90" y="841" font-size="16" font-weight="600" fill="#333" text-anchor="start">부모에 separator key 반영</text>
 
-  <!-- Before 부모 -->
-  <text x="250" y="830" font-size="12" fill="#888" text-anchor="middle">반영 전</text>
-  <rect x="170" y="840" width="130" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
-  <line x1="235" y1="840" x2="235" y2="880" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
-  <text x="203" y="865" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
-  <text x="268" y="865" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
+  <!-- Before 부모 [10 | 20] -->
+  <text x="230" y="880" font-size="12" fill="#888" text-anchor="middle">반영 전 (키 2개)</text>
+  <rect x="150" y="890" width="140" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <line x1="220" y1="890" x2="220" y2="930" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
+  <text x="185" y="915" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
+  <text x="255" y="915" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
 
   <!-- 화살표 -->
-  <text x="420" y="860" font-size="22" fill="#185FA5" text-anchor="middle">→</text>
-  <text x="420" y="878" font-size="11" fill="#EF9F27" font-weight="500" text-anchor="middle">25 삽입</text>
+  <text x="410" y="910" font-size="22" fill="#185FA5" text-anchor="middle">→</text>
+  <text x="410" y="930" font-size="11" fill="#EF9F27" font-weight="500" text-anchor="middle">25 삽입</text>
 
-  <!-- After 부모 -->
-  <text x="660" y="830" font-size="12" fill="#888" text-anchor="middle">반영 후</text>
-  <rect x="560" y="840" width="200" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.2"/>
-  <line x1="626" y1="840" x2="626" y2="880" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
-  <line x1="693" y1="840" x2="693" y2="880" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
-  <text x="593" y="865" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
-  <text x="660" y="865" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
-  <text x="727" y="865" font-size="14" font-weight="600" fill="#EF9F27" text-anchor="middle">25</text>
+  <!-- After 부모 [10 | 20 | 25] (키 3개 = 최대, 꽉 찼지만 아직 OK) -->
+  <text x="660" y="880" font-size="12" fill="#888" text-anchor="middle">반영 후 (키 3개 = 최대, 꽉 참)</text>
+  <rect x="540" y="890" width="220" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.2"/>
+  <line x1="612" y1="890" x2="612" y2="930" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
+  <line x1="685" y1="890" x2="685" y2="930" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
+  <text x="576" y="915" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
+  <text x="648" y="915" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
+  <text x="720" y="915" font-size="14" font-weight="600" fill="#EF9F27" text-anchor="middle">25</text>
 
-  <!-- 분할 후 트리 모습 -->
-  <text x="480" y="920" font-size="13" fill="#555" font-weight="500" text-anchor="middle">분할 완료 후 트리 구조</text>
+  <text x="650" y="952" font-size="10" fill="#534AB7" text-anchor="middle">키 3개 = order - 1. 다음 삽입 시 이 노드도 분할됨</text>
 
-  <!-- 부모 노드 -->
-  <rect x="370" y="940" width="200" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
-  <line x1="436" y1="940" x2="436" y2="980" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
-  <line x1="503" y1="940" x2="503" y2="980" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
-  <text x="403" y="965" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
-  <text x="470" y="965" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
-  <text x="537" y="965" font-size="14" font-weight="600" fill="#EF9F27" text-anchor="middle">25</text>
+  <!-- 분할 후 트리 전체 모습 -->
+  <text x="480" y="990" font-size="13" fill="#555" font-weight="500" text-anchor="middle">분할 완료 후 트리 구조</text>
 
-  <!-- 자식 연결선 -->
-  <line x1="403" y1="980" x2="260" y2="1020" stroke="#999" stroke-width="0.6"/>
-  <line x1="470" y1="980" x2="430" y2="1020" stroke="#999" stroke-width="0.6"/>
-  <line x1="537" y1="980" x2="600" y2="1020" stroke="#999" stroke-width="0.6"/>
-  <line x1="555" y1="980" x2="760" y2="1020" stroke="#999" stroke-width="0.6"/>
+  <!-- 루트 [30 | 60] -->
+  <rect x="370" y="1010" width="140" height="40" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="420" y="1035" font-size="13" font-weight="600" fill="#0C447C" text-anchor="middle">30</text>
+  <line x1="450" y1="1010" x2="450" y2="1050" stroke="#185FA5" stroke-width="0.3" opacity="0.4"/>
+  <text x="480" y="1035" font-size="13" font-weight="600" fill="#0C447C" text-anchor="middle">60</text>
+
+  <!-- 연결선 루트→내부 -->
+  <line x1="400" y1="1050" x2="280" y2="1080" stroke="#999" stroke-width="0.6"/>
+  <line x1="470" y1="1050" x2="550" y2="1080" stroke="#999" stroke-width="0.6"/>
+  <line x1="500" y1="1050" x2="750" y2="1080" stroke="#999" stroke-width="0.6"/>
+
+  <!-- 내부 노드 [10 | 20 | 25] (꽉 참) -->
+  <rect x="180" y="1085" width="200" height="38" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="225" y="1109" font-size="12" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
+  <line x1="253" y1="1085" x2="253" y2="1123" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
+  <text x="280" y="1109" font-size="12" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
+  <line x1="308" y1="1085" x2="308" y2="1123" stroke="#534AB7" stroke-width="0.3" opacity="0.4"/>
+  <text x="335" y="1109" font-size="12" font-weight="600" fill="#EF9F27" text-anchor="middle">25</text>
+
+  <!-- 다른 내부 노드들 (비활성) -->
+  <rect x="480" y="1085" width="100" height="38" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.5"/>
+  <text x="530" y="1109" font-size="11" fill="#bbb" text-anchor="middle">...</text>
+  <rect x="680" y="1085" width="100" height="38" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.5"/>
+  <text x="730" y="1109" font-size="11" fill="#bbb" text-anchor="middle">...</text>
 
   <!-- 리프들 -->
-  <rect x="200" y="1025" width="90" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="245" y="1048" font-size="12" font-weight="600" fill="#085041" text-anchor="middle">... , 8</text>
+  <line x1="210" y1="1123" x2="130" y2="1153" stroke="#999" stroke-width="0.5"/>
+  <line x1="265" y1="1123" x2="250" y2="1153" stroke="#999" stroke-width="0.5"/>
+  <line x1="320" y1="1123" x2="370" y2="1153" stroke="#999" stroke-width="0.5"/>
+  <line x1="365" y1="1123" x2="490" y2="1153" stroke="#999" stroke-width="0.5"/>
 
-  <rect x="380" y="1025" width="90" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="425" y="1048" font-size="12" font-weight="600" fill="#085041" text-anchor="middle">20</text>
+  <rect x="80" y="1158" width="80" height="32" rx="5" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="120" y="1179" font-size="10" font-weight="600" fill="#085041" text-anchor="middle">... , 8</text>
 
-  <rect x="550" y="1025" width="90" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.2"/>
-  <text x="595" y="1048" font-size="12" font-weight="600" fill="#085041" text-anchor="middle">25, 28</text>
+  <rect x="210" y="1158" width="80" height="32" rx="5" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="250" y="1179" font-size="10" font-weight="600" fill="#085041" text-anchor="middle">20, 22</text>
 
-  <rect x="720" y="1025" width="90" height="36" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
-  <text x="765" y="1048" font-size="12" font-weight="600" fill="#085041" text-anchor="middle">30, ...</text>
+  <rect x="340" y="1158" width="80" height="32" rx="5" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+  <text x="380" y="1179" font-size="10" font-weight="700" fill="#085041" text-anchor="middle">25, 28</text>
 
-  <!-- next 포인터들 -->
-  <line x1="290" y1="1043" x2="378" y2="1043" stroke="#1D9E75" stroke-width="1" marker-end="url(#arrowhead)"/>
-  <line x1="470" y1="1043" x2="548" y2="1043" stroke="#1D9E75" stroke-width="1" marker-end="url(#arrowhead)"/>
-  <line x1="640" y1="1043" x2="718" y2="1043" stroke="#1D9E75" stroke-width="1" marker-end="url(#arrowhead)"/>
+  <rect x="470" y="1158" width="80" height="32" rx="5" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="510" y="1179" font-size="10" font-weight="600" fill="#085041" text-anchor="middle">30, ...</text>
 
-  <!-- 주석: 부모도 overflow시 -->
-  <rect x="270" y="1090" width="380" height="30" rx="15" fill="#f8f8f6" stroke="#ddd" stroke-width="0.5"/>
-  <text x="460" y="1110" font-size="11" fill="#888" text-anchor="middle">부모 노드도 가득 차면 → 내부 노드 분할 반복 (재귀)</text>
+  <!-- next 포인터 -->
+  <line x1="160" y1="1174" x2="208" y2="1174" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+  <line x1="290" y1="1174" x2="338" y2="1174" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+  <line x1="420" y1="1174" x2="468" y2="1174" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+
+  <!-- 하단 주석 -->
+  <rect x="230" y="1210" width="460" height="30" rx="15" fill="#f8f8f6" stroke="#ddd" stroke-width="0.5"/>
+  <text x="460" y="1230" font-size="11" fill="#888" text-anchor="middle">부모 노드도 가득 차면 → 같은 방식으로 내부 노드 분할 반복 (재귀)</text>
 
 </svg>
