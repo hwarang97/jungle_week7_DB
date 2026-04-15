@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 
@@ -296,6 +297,22 @@ static void test_search_three_leaf_rightmost_branch(void)
     bptree_destroy(tree);
 }
 
+static void test_search_int_max_key(void)
+{
+    BPTree *tree = bptree_create();
+    static int near_max_value = 1001;
+    static int max_value = 1002;
+
+    assert(tree != NULL);
+    assert(bptree_insert(tree, INT_MAX - 1, &near_max_value) == 0);
+    assert(bptree_insert(tree, INT_MAX, &max_value) == 0);
+    assert(bptree_search(tree, INT_MAX - 1) == &near_max_value);
+    assert(bptree_search(tree, INT_MAX) == &max_value);
+    assert(bptree_search(tree, INT_MAX - 2) == NULL);
+
+    bptree_destroy(tree);
+}
+
 static void run_test(const TestCase *test_case, int index, int total)
 {
     printf("[SEARCH %d/%d] %s ... ", index, total, test_case->name);
@@ -307,17 +324,18 @@ static void run_test(const TestCase *test_case, int index, int total)
 int main(void)
 {
     TestCase tests[] = {
-        {"basic: 내부 노드를 따라 내려가 리프에서 key 를 찾는다", test_search_basic_two_leaf},
-        {"case-01: 빈 트리에서는 어떤 key 도 찾지 못한다", test_search_empty_tree_returns_null},
-        {"case-02: 리프 하나만 있을 때 첫 번째 key 를 찾는다", test_search_single_leaf_first_key},
-        {"case-03: 리프 하나만 있을 때 마지막 key 를 찾는다", test_search_single_leaf_last_key},
-        {"case-04: 리프 안에 없는 중간 key 는 NULL 이다", test_search_single_leaf_missing_key_between_values},
-        {"case-05: 왼쪽 리프의 경계 key 를 찾는다", test_search_two_leaf_left_boundary_key},
-        {"case-06: 분기 기준 key 는 오른쪽 리프로 내려간다", test_search_two_leaf_separator_key_goes_right},
-        {"case-07: 전체 최소값보다 작은 key 는 NULL 이다", test_search_two_leaf_missing_key_smaller_than_all},
-        {"case-08: 전체 최대값보다 큰 key 는 NULL 이다", test_search_two_leaf_missing_key_larger_than_all},
-        {"case-09: 세 개의 리프 중 가운데 리프를 선택한다", test_search_three_leaf_middle_branch},
-        {"case-10: 가장 오른쪽 리프까지 내려가 key 를 찾는다", test_search_three_leaf_rightmost_branch},
+        {"basic search on a two-leaf tree", test_search_basic_two_leaf},
+        {"empty tree returns null", test_search_empty_tree_returns_null},
+        {"single leaf finds first key", test_search_single_leaf_first_key},
+        {"single leaf finds last key", test_search_single_leaf_last_key},
+        {"single leaf misses middle key", test_search_single_leaf_missing_key_between_values},
+        {"two-leaf search finds left boundary key", test_search_two_leaf_left_boundary_key},
+        {"separator key routes to the right leaf", test_search_two_leaf_separator_key_goes_right},
+        {"two-leaf search misses key smaller than all", test_search_two_leaf_missing_key_smaller_than_all},
+        {"two-leaf search misses key larger than all", test_search_two_leaf_missing_key_larger_than_all},
+        {"three-leaf search visits middle branch", test_search_three_leaf_middle_branch},
+        {"three-leaf search visits rightmost branch", test_search_three_leaf_rightmost_branch},
+        {"int max boundary key search", test_search_int_max_key},
     };
     int total = (int)(sizeof(tests) / sizeof(tests[0]));
     int i;

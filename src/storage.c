@@ -2498,6 +2498,55 @@ static int cache_insert_row(TableIndexCache *cache, char **row)
     return 0;
 }
 
+static int build_row_with_generated_id(const ColDef *schema, int schema_count,
+                                       char **values, int count,
+                                       int id_index, long next_id,
+                                       char ***out_row)
+{
+    char generated_id[64];
+    char **row;
+    int value_index;
+    int schema_index;
+
+    if (schema == NULL || values == NULL || out_row == NULL ||
+        id_index < 0 || id_index >= schema_count) {
+        return -1;
+    }
+
+    if (count != schema_count - 1 || next_id > INT_MAX) {
+        return -1;
+    }
+
+    if (snprintf(generated_id, sizeof(generated_id), "%ld", next_id) < 0) {
+        return -1;
+    }
+
+    row = calloc((size_t)schema_count, sizeof(*row));
+    if (row == NULL) {
+        return -1;
+    }
+
+    value_index = 0;
+    for (schema_index = 0; schema_index < schema_count; ++schema_index) {
+        const char *source;
+
+        if (schema_index == id_index) {
+            source = generated_id;
+        } else {
+            source = values[value_index++];
+        }
+
+        row[schema_index] = dup_string(source);
+        if (row[schema_index] == NULL) {
+            free_string_array(row, schema_count);
+            return -1;
+        }
+    }
+
+    *out_row = row;
+    return 0;
+}
+
 static int build_insert_row(const ColDef *schema, int schema_count,
                             char **columns, char **values, int count,
                             int id_index, long next_id,
@@ -2522,51 +2571,47 @@ static int build_insert_row(const ColDef *schema, int schema_count,
     explicit_id = insert_supplies_id(columns, count, schema_count);
 
     if (!explicit_id) {
-        int index;
-
-        if (next_id > INT_MAX) {
-            return -1;
-        }
-
-        if (columns != NULL && count != schema_count - 1) {
-            return -1;
-        }
-
         if (columns == NULL) {
-            return -1;
-        }
+            if (build_row_with_generated_id(schema, schema_count, values, count,
+                                            id_index, next_id, out_row) != 0) {
+                return -1;
+            }
+        } else {
+            int index;
 
-        if (snprintf(generated_id, sizeof(generated_id), "%ld", next_id) < 0) {
-            return -1;
-        }
+            if (next_id > INT_MAX || count != schema_count - 1) {
+                return -1;
+            }
 
-        aug_columns = calloc((size_t)schema_count, sizeof(*aug_columns));
-        aug_values = calloc((size_t)schema_count, sizeof(*aug_values));
-        if (aug_columns == NULL || aug_values == NULL) {
-            free(aug_columns);
-            free(aug_values);
-            return -1;
-        }
+            if (snprintf(generated_id, sizeof(generated_id), "%ld", next_id) < 0) {
+                return -1;
+            }
 
-        if (columns != NULL) {
+            aug_columns = calloc((size_t)schema_count, sizeof(*aug_columns));
+            aug_values = calloc((size_t)schema_count, sizeof(*aug_values));
+            if (aug_columns == NULL || aug_values == NULL) {
+                free(aug_columns);
+                free(aug_values);
+                return -1;
+            }
+
             for (index = 0; index < count; ++index) {
                 aug_columns[index] = columns[index];
                 aug_values[index] = values[index];
             }
             aug_columns[count] = (char *)schema[id_index].name;
             aug_values[count] = generated_id;
-        }
 
-        if (build_row_in_schema_order(schema, schema_count,
-                                      aug_columns, aug_values, schema_count,
-                                      out_row) != 0) {
+            if (build_row_in_schema_order(schema, schema_count,
+                                          aug_columns, aug_values, schema_count,
+                                          out_row) != 0) {
+                free(aug_columns);
+                free(aug_values);
+                return -1;
+            }
             free(aug_columns);
             free(aug_values);
-            return -1;
         }
-
-        free(aug_columns);
-        free(aug_values);
     } else if (build_row_in_schema_order(schema, schema_count, columns, values, count, out_row) != 0) {
         return -1;
     }

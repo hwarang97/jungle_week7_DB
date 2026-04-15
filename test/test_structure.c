@@ -105,7 +105,6 @@ static void assert_node_keys_sorted(const BPTreeNode *node)
     }
 }
 
-/* 부모 포인터, separator key, leaf depth 같은 B+ Tree 핵심 불변식을 재귀적으로 점검한다. */
 static int assert_subtree_invariants(const BPTreeNode *node,
                                      const BPTreeNode *parent,
                                      int depth,
@@ -392,6 +391,22 @@ static void test_insert_stress_patterns_keep_invariants(void)
     }
 }
 
+static void test_int_max_key_keeps_invariants(void)
+{
+    BPTree *tree = bptree_create();
+    int near_max_value = 111;
+    int max_value = 222;
+
+    assert(tree != NULL);
+    assert(bptree_insert(tree, INT_MAX - 1, &near_max_value) == 0);
+    assert(bptree_insert(tree, INT_MAX, &max_value) == 0);
+    assert(bptree_search(tree, INT_MAX - 1) == &near_max_value);
+    assert(bptree_search(tree, INT_MAX) == &max_value);
+    assert_tree_invariants(tree, 2);
+
+    bptree_destroy(tree);
+}
+
 static void run_test(const TestCase *test_case, int index, int total)
 {
     printf("[STRUCTURE %d/%d] %s ... ", index, total, test_case->name);
@@ -403,12 +418,13 @@ static void run_test(const TestCase *test_case, int index, int total)
 int main(void)
 {
     TestCase tests[] = {
-        {"create: 빈 트리를 만들면 루트 리프가 준비된다", test_create},
-        {"insert: split 전에는 leaf 안에 key 를 정렬해서 넣는다", test_insert_single_leaf_sorted},
-        {"duplicate: 같은 key 를 다시 넣으면 value 만 갱신한다", test_duplicate_key_updates_value},
-        {"split: 첫 leaf split 이 일어나면 새 root internal node 가 생긴다", test_leaf_split_creates_new_root},
-        {"split: internal split 뒤에도 search 와 leaf chain 이 유지된다", test_internal_split_keeps_search_and_leaf_chain},
-        {"stress: 여러 insert 패턴 뒤에도 search 와 구조 불변식이 유지된다", test_insert_stress_patterns_keep_invariants},
+        {"create starts with a single empty leaf root", test_create},
+        {"single-leaf insert keeps keys sorted", test_insert_single_leaf_sorted},
+        {"duplicate key updates only the value", test_duplicate_key_updates_value},
+        {"leaf split creates a new internal root", test_leaf_split_creates_new_root},
+        {"internal split preserves search and leaf chain", test_internal_split_keeps_search_and_leaf_chain},
+        {"stress patterns preserve search and invariants", test_insert_stress_patterns_keep_invariants},
+        {"int max key keeps search and invariants", test_int_max_key_keeps_invariants},
     };
     int total = (int)(sizeof(tests) / sizeof(tests[0]));
     int i;

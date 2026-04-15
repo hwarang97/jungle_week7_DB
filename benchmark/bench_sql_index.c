@@ -7,8 +7,8 @@
 #include "../src/bptree.h"
 
 #define BENCH_TABLE "bench_users"
-#define ID_LOOKUPS 1000
-#define NAME_LOOKUPS 1000
+#define ID_LOOKUPS 500
+#define NAME_LOOKUPS 500
 
 static const char *ansi_reset(void)
 {
@@ -102,6 +102,7 @@ static double elapsed_ms(clock_t start, clock_t end)
 static int prepare_fixture(int row_count)
 {
     char *col_defs[] = {"id INT", "name VARCHAR", "age INT"};
+    char *columns[] = {"name", "age"};
     int i;
 
     cleanup_fixture();
@@ -110,20 +111,17 @@ static int prepare_fixture(int row_count)
     }
 
     for (i = 1; i <= row_count; ++i) {
-        char id_text[32];
         char name_text[64];
         char age_text[32];
-        char *values[3];
+        char *values[2];
 
-        snprintf(id_text, sizeof(id_text), "%d", i);
         snprintf(name_text, sizeof(name_text), "user%d", i);
         snprintf(age_text, sizeof(age_text), "%d", 20 + (i % 30));
 
-        values[0] = id_text;
-        values[1] = name_text;
-        values[2] = age_text;
+        values[0] = name_text;
+        values[1] = age_text;
 
-        if (storage_insert(BENCH_TABLE, NULL, values, 3) != 0) {
+        if (storage_insert(BENCH_TABLE, columns, values, 2) != 0) {
             return -1;
         }
     }
@@ -236,7 +234,7 @@ static void run_case(int row_count)
 
 int main(void)
 {
-    int row_counts[] = {100, 1000, 5000};
+    int row_counts[] = {10000, 100000, 1000000};
     int i;
 
     printf("%s%s[bench-sql-index]%s current_bptree_order=%s%d%s\n",
@@ -246,6 +244,9 @@ int main(void)
            ansi_bold(), ansi_cyan(), ansi_reset(),
            ansi_green(), ansi_reset(),
            ansi_yellow(), ansi_reset());
+    printf("%s%s[insert]%s fixture uses actual %sstorage_insert()%s with auto-generated ids\n",
+           ansi_bold(), ansi_cyan(), ansi_reset(),
+           ansi_bold(), ansi_reset());
 
     for (i = 0; i < (int)(sizeof(row_counts) / sizeof(row_counts[0])); ++i) {
         run_case(row_counts[i]);
