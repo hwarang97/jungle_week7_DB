@@ -18,7 +18,8 @@ SQL_SRCS = $(SRC_DIR)/main.c \
            $(SRC_DIR)/json_out.c \
            $(SRC_DIR)/sql_format.c \
            $(SRC_DIR)/executor.c \
-           $(SRC_DIR)/storage.c
+           $(SRC_DIR)/storage.c \
+           $(SRC_DIR)/bptree.c
 
 SQL_TEST_SRCS = $(TEST_DIR)/test_parser.c \
                 $(TEST_DIR)/test_executor.c \
@@ -27,11 +28,12 @@ SQL_TEST_SRCS = $(TEST_DIR)/test_parser.c \
                 $(SRC_DIR)/json_out.c \
                 $(SRC_DIR)/sql_format.c \
                 $(SRC_DIR)/executor.c \
-                $(SRC_DIR)/storage.c
+                $(SRC_DIR)/storage.c \
+                $(SRC_DIR)/bptree.c
 
-STORAGE_TEST_TARGETS = test_storage_insert test_storage_delete test_storage_update test_storage_select_result
-STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c
-SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c
+STORAGE_TEST_TARGETS = test_storage_insert test_storage_delete test_storage_update test_storage_select_result test_sql_index_integration
+STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/bptree.c
+SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/bptree.c $(SRC_DIR)/parser.c
 
 ifeq ($(OS),Windows_NT)
 EXEEXT = .exe
@@ -97,6 +99,10 @@ test_storage_update: $(TEST_DIR)/test_storage_update.c $(STORAGE_TEST_DEPS)
 	$(RUN_CURRENT_TARGET)
 
 test_storage_select_result: $(TEST_DIR)/test_storage_select_result.c $(SELECT_RESULT_DEPS)
+	$(CC) $(CFLAGS) -o $@ $^
+	$(RUN_CURRENT_TARGET)
+
+test_sql_index_integration: $(TEST_DIR)/test_sql_index_integration.c $(SRC_DIR)/parser.c $(SRC_DIR)/executor.c $(SELECT_RESULT_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
 	$(RUN_CURRENT_TARGET)
 

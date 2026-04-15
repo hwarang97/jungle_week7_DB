@@ -11,7 +11,9 @@
 #define dup _dup
 #define dup2 _dup2
 #define close _close
+#ifndef fileno
 #define fileno _fileno
+#endif
 #define make_dir(path) _mkdir(path)
 #else
 #include <sys/stat.h>
@@ -28,6 +30,8 @@
 #define USERS_CSV_PATH DATA_DIR "/users.csv"
 #define USERS_NESTED_SCHEMA_PATH DATA_SCHEMA_DIR "/users.schema"
 #define USERS_NESTED_CSV_PATH DATA_TABLES_DIR "/users.csv"
+#define MEMBERS_NESTED_SCHEMA_PATH DATA_SCHEMA_DIR "/members.schema"
+#define MEMBERS_NESTED_CSV_PATH DATA_TABLES_DIR "/members.csv"
 
 static char *duplicate_string(const char *source)
 {
@@ -151,6 +155,8 @@ static void cleanup_fixture_files(void)
     remove(USERS_SCHEMA_PATH);
     remove(USERS_NESTED_CSV_PATH);
     remove(USERS_NESTED_SCHEMA_PATH);
+    remove(MEMBERS_NESTED_CSV_PATH);
+    remove(MEMBERS_NESTED_SCHEMA_PATH);
 }
 
 /* Recreate fixture files so executor tests still pass after make clean. */
@@ -223,6 +229,20 @@ static int capture_stdout_for_select(ParsedSQL *sql, char **output)
     *output = read_text_file(TEST_OUTPUT_PATH);
     remove(TEST_OUTPUT_PATH);
     return (*output == NULL) ? 1 : 0;
+}
+
+static int execute_sql_text(const char *sql_text)
+{
+    ParsedSQL *sql;
+
+    sql = parse_sql(sql_text);
+    if (sql == NULL) {
+        return 1;
+    }
+
+    execute(sql);
+    free_parsed(sql);
+    return 0;
 }
 
 static ParsedSQL *make_base_select(void)
@@ -363,6 +383,44 @@ static int test_storage_select_rejects_unknown_column(void)
     return 0;
 }
 
+static int test_execute_insert_auto_id_and_select_by_id(void)
+{
+    ParsedSQL *sql;
+    char *output;
+
+    if (execute_sql_text("CREATE TABLE members (id INT, name VARCHAR, age INT);") != 0 ||
+        execute_sql_text("INSERT INTO members (name, age) VALUES (Alice, 20);") != 0 ||
+        execute_sql_text("INSERT INTO members (name, age) VALUES (Bob, 31);") != 0) {
+        fail_test("Failed to execute create/insert SQL for auto-id flow.");
+        return 1;
+    }
+
+    sql = parse_sql("SELECT id, name FROM members WHERE id = 2;");
+    if (sql == NULL) {
+        fail_test("Failed to parse indexed SELECT.");
+        return 1;
+    }
+
+    if (capture_stdout_for_select(sql, &output) != 0) {
+        free_parsed(sql);
+        fail_test("Failed to capture indexed SELECT output.");
+        return 1;
+    }
+
+    if (!contains_text(output, "id | name") ||
+        !contains_text(output, "2 | Bob") ||
+        !contains_text(output, "(1 rows)")) {
+        free(output);
+        free_parsed(sql);
+        fail_test("Indexed SELECT did not return the auto-generated id row.");
+        return 1;
+    }
+
+    free(output);
+    free_parsed(sql);
+    return 0;
+}
+
 int run_executor_tests(void)
 {
     int status;
@@ -388,6 +446,11 @@ int run_executor_tests(void)
     }
 
     if (test_storage_select_rejects_unknown_column() != 0) {
+        status = 1;
+        goto cleanup;
+    }
+
+    if (test_execute_insert_auto_id_and_select_by_id() != 0) {
         status = 1;
         goto cleanup;
     }

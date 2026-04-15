@@ -37,6 +37,8 @@ static int test_insert_unknown_column_fails(void);
 static int test_insert_duplicate_column_fails(void);
 static int test_insert_null_column_entry_fails(void);
 static int test_insert_escapes_csv_characters(void);
+static int test_insert_auto_id_when_id_omitted(void);
+static int test_insert_auto_id_increments_across_rows(void);
 
 #define ASSERT_TRUE(expr)                                                        \
     do {                                                                         \
@@ -67,6 +69,8 @@ int main(void)
         {"insert duplicate column fails", test_insert_duplicate_column_fails},
         {"insert null column entry fails", test_insert_null_column_entry_fails},
         {"insert escapes csv characters", test_insert_escapes_csv_characters},
+        {"insert auto id when id omitted", test_insert_auto_id_when_id_omitted},
+        {"insert auto id increments across rows", test_insert_auto_id_increments_across_rows},
     };
     size_t i;
     int failed = 0;
@@ -363,6 +367,48 @@ static int test_insert_escapes_csv_characters(void)
     ASSERT_TRUE(storage_insert("users", NULL, (char **)values, 3) == 0);
     ASSERT_TRUE(read_text_file("data/tables/users.csv", buffer, sizeof(buffer)) == 0);
     ASSERT_TRUE(strcmp(buffer, "1,\"kim, \"\"minsu\"\"\",20\n") == 0);
+    status = 0;
+
+cleanup:
+    reset_test_environment();
+    return status;
+}
+
+static int test_insert_auto_id_when_id_omitted(void)
+{
+    const char *columns[] = {"name", "age"};
+    const char *values[] = {"kim", "20"};
+    char buffer[BUFFER_SIZE];
+    int status = 1;
+
+    reset_test_environment();
+    ASSERT_TRUE(prepare_dirs() == 0);
+    ASSERT_TRUE(write_text_file("data/schema/users.schema", "id,INT\nname,VARCHAR\nage,INT\n") == 0);
+    ASSERT_TRUE(storage_insert("users", (char **)columns, (char **)values, 2) == 0);
+    ASSERT_TRUE(read_text_file("data/tables/users.csv", buffer, sizeof(buffer)) == 0);
+    ASSERT_TRUE(strcmp(buffer, "1,kim,20\n") == 0);
+    status = 0;
+
+cleanup:
+    reset_test_environment();
+    return status;
+}
+
+static int test_insert_auto_id_increments_across_rows(void)
+{
+    const char *columns[] = {"name", "age"};
+    const char *first_values[] = {"kim", "20"};
+    const char *second_values[] = {"lee", "31"};
+    char buffer[BUFFER_SIZE];
+    int status = 1;
+
+    reset_test_environment();
+    ASSERT_TRUE(prepare_dirs() == 0);
+    ASSERT_TRUE(write_text_file("data/schema/users.schema", "id,INT\nname,VARCHAR\nage,INT\n") == 0);
+    ASSERT_TRUE(storage_insert("users", (char **)columns, (char **)first_values, 2) == 0);
+    ASSERT_TRUE(storage_insert("users", (char **)columns, (char **)second_values, 2) == 0);
+    ASSERT_TRUE(read_text_file("data/tables/users.csv", buffer, sizeof(buffer)) == 0);
+    ASSERT_TRUE(strcmp(buffer, "1,kim,20\n2,lee,31\n") == 0);
     status = 0;
 
 cleanup:

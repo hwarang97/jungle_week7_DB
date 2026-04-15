@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,7 @@
 #define STAT_FUNC stat
 #endif
 
+#include "bptree.h"
 #include "types.h"
 
 #define STORAGE_PATH_MAX 512
@@ -30,6 +32,23 @@ typedef struct {
     int capacity;
     int row_width;
 } StorageRowBuffer;
+
+/* 사이클 3에서는 SQL 처리기와 B+ 트리를 storage 레이어에서 직접 연결한다.
+ * 테이블별로 메모리 인덱스/next_id 를 캐시해 두고,
+ * INSERT 와 WHERE id = ? SELECT 에서만 빠른 경로를 사용한다.
+ */
+typedef struct TableIndexCache {
+    char table[64];
+    BPTree *id_index;
+    StorageRowBuffer rows;
+    int schema_count;
+    int id_index_column;
+    long next_id;
+    int ready;
+    struct TableIndexCache *next;
+} TableIndexCache;
+
+static TableIndexCache *g_table_index_caches = NULL;
 
 static int validate_insert_input(const char *table, char **values, int count);
 static int validate_delete_input(const char *table, const ParsedSQL *sql);
@@ -97,6 +116,27 @@ static int parse_schema_definition(const char *text, char *name_out, size_t name
                                    char *type_out, size_t type_size);
 static int load_table_rows(const char *table_path, int schema_count, StorageRowBuffer *rows);
 static int append_row_buffer(StorageRowBuffer *buffer, char **row);
+static int duplicate_row_cells(char **source, int count, char ***out_row);
+static int find_int_id_column_index(const ColDef *schema, int schema_count);
+static int insert_supplies_id(char **columns, int count, int schema_count);
+static int parse_id_key_text(const char *text, int *out_key);
+static TableIndexCache *find_table_index_cache(const char *table);
+static void reset_table_index_cache(TableIndexCache *cache);
+static void free_table_index_cache(TableIndexCache *cache);
+static void invalidate_table_index_cache(const char *table);
+static int build_table_index_cache(TableIndexCache *cache, const char *table_path,
+                                   const ColDef *schema, int schema_count);
+static int ensure_table_index_cache(const char *table, const char *table_path,
+                                    const ColDef *schema, int schema_count,
+                                    TableIndexCache **out_cache);
+static int cache_insert_row(TableIndexCache *cache, char **row);
+static int build_insert_row(const ColDef *schema, int schema_count,
+                            char **columns, char **values, int count,
+                            int id_index, long next_id,
+                            char ***out_row, int *out_id_key);
+static int parse_exact_id_lookup(const ParsedSQL *sql, int *out_id_key);
+static int build_selection_from_index_lookup(TableIndexCache *cache, int id_key,
+                                             StorageRowBuffer *selection);
 static int evaluate_select_clause(const ColDef *schema, int schema_count,
                                   char **row, int row_count,
                                   const WhereClause *clause, int *matched);
@@ -140,6 +180,9 @@ int storage_insert(const char *table, char **columns, char **values, int count)
     char table_path[STORAGE_PATH_MAX];
     ColDef *schema = NULL;
     int schema_count = 0;
+    TableIndexCache *cache = NULL;
+    int id_key = 0;
+    int id_index;
     char **row = NULL;
     int status = -1;
 
@@ -159,11 +202,27 @@ int storage_insert(const char *table, char **columns, char **values, int count)
         return -1;
     }
 
-    if (build_row_in_schema_order(schema, schema_count, columns, values, count, &row) != 0) {
+    id_index = find_int_id_column_index(schema, schema_count);
+    if (ensure_table_index_cache(table, table_path, schema, schema_count, &cache) != 0) {
+        goto cleanup;
+    }
+
+    if (build_insert_row(schema, schema_count, columns, values, count,
+                         id_index, cache != NULL ? cache->next_id : 1,
+                         &row, &id_key) != 0) {
+        goto cleanup;
+    }
+
+    if (cache != NULL && bptree_search(cache->id_index, id_key) != NULL) {
+        fprintf(stderr, "[storage] duplicate id insert rejected: %d\n", id_key);
         goto cleanup;
     }
 
     status = append_csv_row(table_path, row, schema_count);
+    if (status == 0 && cache != NULL && cache_insert_row(cache, row) != 0) {
+        /* 파일 append 는 이미 끝났으니, 캐시는 버리고 다음 쿼리에서 다시 rebuild 한다. */
+        invalidate_table_index_cache(table);
+    }
 
 cleanup:
     free_string_array(row, schema_count);
@@ -209,6 +268,9 @@ int storage_delete(const char *table, ParsedSQL *sql)
 
     status = delete_rows_from_table(table_path, temp_path, schema, schema_count,
                                     sql);
+    if (status == 0) {
+        invalidate_table_index_cache(table);
+    }
 
 cleanup:
     free(schema);
@@ -233,6 +295,9 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
     int schema_count = 0;
     StorageRowBuffer rows = {0};
     StorageRowBuffer selection = {0};
+    TableIndexCache *cache = NULL;
+    int id_key = 0;
+    int used_index = 0;
     int status = -1;
 
     if (out == NULL) {
@@ -257,11 +322,6 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
         return -1;
     }
 
-    if (load_table_rows(table_path, schema_count, &rows) != 0) {
-        fprintf(stderr, "[storage] SELECT: cannot read table '%s'\n", table);
-        goto cleanup;
-    }
-
     /* WHERE 컬럼 사전 검증 — 빈 테이블 때문에 evaluate_select_clause 가
      * 호출되지 않아도 컬럼 오타를 잡아준다. */
     if (sql->where_count > 0 && sql->where != NULL) {
@@ -276,8 +336,25 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
         if (bad) goto cleanup;
     }
 
-    if (collect_matching_rows(sql, schema, schema_count, &rows, &selection) != 0) {
-        goto cleanup;
+    if (parse_exact_id_lookup(sql, &id_key) &&
+        path_exists(table_path) &&
+        ensure_table_index_cache(table, table_path, schema, schema_count, &cache) == 0 &&
+        cache != NULL) {
+        if (build_selection_from_index_lookup(cache, id_key, &selection) != 0) {
+            goto cleanup;
+        }
+        used_index = 1;
+    }
+
+    if (!used_index) {
+        if (load_table_rows(table_path, schema_count, &rows) != 0) {
+            fprintf(stderr, "[storage] SELECT: cannot read table '%s'\n", table);
+            goto cleanup;
+        }
+
+        if (collect_matching_rows(sql, schema, schema_count, &rows, &selection) != 0) {
+            goto cleanup;
+        }
     }
 
     if (sort_selection(sql, schema, schema_count, &selection) != 0) {
@@ -362,6 +439,9 @@ int storage_update(const char *table, ParsedSQL *sql)
 
     status = update_rows_from_table(table_path, temp_path, schema, schema_count,
                                     sql, set_indexes);
+    if (status == 0) {
+        invalidate_table_index_cache(table);
+    }
 
 cleanup:
     free(set_indexes);
@@ -376,6 +456,8 @@ int storage_create(const char *table, char **col_defs, int count)
 {
     char schema_path[STORAGE_PATH_MAX];
     char table_path[STORAGE_PATH_MAX];
+    char legacy_schema_path[STORAGE_PATH_MAX];
+    char legacy_table_path[STORAGE_PATH_MAX];
     FILE *schema_fp = NULL;
     FILE *table_fp = NULL;
     int index;
@@ -386,14 +468,24 @@ int storage_create(const char *table, char **col_defs, int count)
         return -1;
     }
 
+    invalidate_table_index_cache(table);
+
     if (ensure_storage_directories() != 0) {
         return -1;
     }
 
-    if (build_schema_path(table, schema_path, sizeof(schema_path)) != 0 ||
-        build_table_path(table, table_path, sizeof(table_path)) != 0) {
+    if (snprintf(schema_path, sizeof(schema_path), "data/schema/%s.schema", table) < 0 ||
+        snprintf(table_path, sizeof(table_path), "data/tables/%s.csv", table) < 0 ||
+        snprintf(legacy_schema_path, sizeof(legacy_schema_path), "data/%s.schema", table) < 0 ||
+        snprintf(legacy_table_path, sizeof(legacy_table_path), "data/%s.csv", table) < 0) {
         return -1;
     }
+
+    /* CREATE TABLE 부터는 canonical nested path 를 기준으로 삼고,
+     * 예전 legacy 파일이 남아 있으면 함께 치워서 경로 혼선을 막는다.
+     */
+    remove(legacy_schema_path);
+    remove(legacy_table_path);
 
     schema_fp = fopen(schema_path, "w");
     if (schema_fp == NULL) {
@@ -420,7 +512,8 @@ int storage_create(const char *table, char **col_defs, int count)
     }
     schema_fp = NULL;
 
-    table_fp = fopen(table_path, "a");
+    /* CREATE TABLE 은 기존 row 를 남기지 않고 빈 테이블 파일로 시작해야 한다. */
+    table_fp = fopen(table_path, "w");
     if (table_fp == NULL) {
         goto cleanup;
     }
@@ -2129,6 +2222,399 @@ static int append_row_buffer(StorageRowBuffer *buffer, char **row)
 
     buffer->rows[buffer->count++] = row;
     return 0;
+}
+
+static int duplicate_row_cells(char **source, int count, char ***out_row)
+{
+    char **copy;
+    int index;
+
+    if (source == NULL || count <= 0 || out_row == NULL) {
+        return -1;
+    }
+
+    copy = calloc((size_t)count, sizeof(*copy));
+    if (copy == NULL) {
+        return -1;
+    }
+
+    for (index = 0; index < count; ++index) {
+        copy[index] = dup_string(source[index] == NULL ? "" : source[index]);
+        if (copy[index] == NULL) {
+            free_string_array(copy, count);
+            return -1;
+        }
+    }
+
+    *out_row = copy;
+    return 0;
+}
+
+static int find_int_id_column_index(const ColDef *schema, int schema_count)
+{
+    int index;
+
+    index = find_schema_index(schema, schema_count, "id");
+    if (index < 0) {
+        return -1;
+    }
+
+    return schema[index].type == TYPE_INT ? index : -1;
+}
+
+static int insert_supplies_id(char **columns, int count, int schema_count)
+{
+    int index;
+
+    if (columns == NULL) {
+        return count == schema_count;
+    }
+
+    for (index = 0; index < count; ++index) {
+        if (columns[index] != NULL && equals_ignore_case(columns[index], "id")) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int parse_id_key_text(const char *text, int *out_key)
+{
+    char literal[256];
+    long value;
+
+    if (text == NULL || out_key == NULL) {
+        return -1;
+    }
+
+    strip_optional_quotes(text, literal, sizeof(literal));
+    if (parse_long_value(literal, &value) != 0 || value < INT_MIN || value > INT_MAX) {
+        return -1;
+    }
+
+    *out_key = (int)value;
+    return 0;
+}
+
+static TableIndexCache *find_table_index_cache(const char *table)
+{
+    TableIndexCache *cursor = g_table_index_caches;
+
+    while (cursor != NULL) {
+        if (equals_ignore_case(cursor->table, table)) {
+            return cursor;
+        }
+        cursor = cursor->next;
+    }
+
+    return NULL;
+}
+
+static void reset_table_index_cache(TableIndexCache *cache)
+{
+    if (cache == NULL) {
+        return;
+    }
+
+    bptree_destroy(cache->id_index);
+    cache->id_index = NULL;
+    free_row_buffer(&cache->rows, 1);
+    cache->schema_count = 0;
+    cache->id_index_column = -1;
+    cache->next_id = 1;
+    cache->ready = 0;
+}
+
+static void free_table_index_cache(TableIndexCache *cache)
+{
+    if (cache == NULL) {
+        return;
+    }
+
+    reset_table_index_cache(cache);
+    free(cache);
+}
+
+static void invalidate_table_index_cache(const char *table)
+{
+    TableIndexCache *prev = NULL;
+    TableIndexCache *cursor = g_table_index_caches;
+
+    while (cursor != NULL) {
+        if (equals_ignore_case(cursor->table, table)) {
+            if (prev == NULL) {
+                g_table_index_caches = cursor->next;
+            } else {
+                prev->next = cursor->next;
+            }
+            free_table_index_cache(cursor);
+            return;
+        }
+        prev = cursor;
+        cursor = cursor->next;
+    }
+}
+
+static int build_table_index_cache(TableIndexCache *cache, const char *table_path,
+                                   const ColDef *schema, int schema_count)
+{
+    int row_index;
+
+    if (cache == NULL || table_path == NULL || schema == NULL || schema_count <= 0) {
+        return -1;
+    }
+
+    reset_table_index_cache(cache);
+    cache->schema_count = schema_count;
+    cache->id_index_column = find_int_id_column_index(schema, schema_count);
+    cache->next_id = 1;
+    cache->rows.row_width = schema_count;
+
+    cache->id_index = bptree_create();
+    if (cache->id_index == NULL) {
+        return -1;
+    }
+
+    if (!path_exists(table_path)) {
+        cache->ready = 1;
+        return 0;
+    }
+
+    if (load_table_rows(table_path, schema_count, &cache->rows) != 0) {
+        reset_table_index_cache(cache);
+        return -1;
+    }
+
+    for (row_index = 0; row_index < cache->rows.count; ++row_index) {
+        int id_key;
+
+        if (parse_id_key_text(cache->rows.rows[row_index][cache->id_index_column], &id_key) != 0) {
+            fprintf(stderr, "[storage] invalid id value while building index for table '%s'\n",
+                    cache->table);
+            reset_table_index_cache(cache);
+            return -1;
+        }
+
+        if (bptree_search(cache->id_index, id_key) != NULL ||
+            bptree_insert(cache->id_index, id_key, cache->rows.rows[row_index]) != 0) {
+            fprintf(stderr, "[storage] failed to build unique id index for table '%s'\n",
+                    cache->table);
+            reset_table_index_cache(cache);
+            return -1;
+        }
+
+        if ((long)id_key >= cache->next_id) {
+            cache->next_id = (long)id_key + 1;
+        }
+    }
+
+    cache->ready = 1;
+    return 0;
+}
+
+static int ensure_table_index_cache(const char *table, const char *table_path,
+                                    const ColDef *schema, int schema_count,
+                                    TableIndexCache **out_cache)
+{
+    TableIndexCache *cache;
+    int id_index;
+
+    if (out_cache == NULL) {
+        return -1;
+    }
+    *out_cache = NULL;
+
+    id_index = find_int_id_column_index(schema, schema_count);
+    if (id_index < 0) {
+        return 0;
+    }
+
+    cache = find_table_index_cache(table);
+    if (cache != NULL &&
+        (!path_exists(table_path) || cache->schema_count != schema_count || cache->id_index_column != id_index)) {
+        invalidate_table_index_cache(table);
+        cache = NULL;
+    }
+
+    if (cache == NULL) {
+        cache = calloc(1, sizeof(*cache));
+        if (cache == NULL) {
+            return -1;
+        }
+
+        strncpy(cache->table, table, sizeof(cache->table) - 1);
+        cache->id_index_column = id_index;
+        cache->next_id = 1;
+        cache->next = g_table_index_caches;
+        g_table_index_caches = cache;
+    }
+
+    if (!cache->ready && build_table_index_cache(cache, table_path, schema, schema_count) != 0) {
+        invalidate_table_index_cache(table);
+        return -1;
+    }
+
+    *out_cache = cache;
+    return 0;
+}
+
+static int cache_insert_row(TableIndexCache *cache, char **row)
+{
+    char **owned_row = NULL;
+    int id_key;
+
+    if (cache == NULL || row == NULL || cache->id_index == NULL) {
+        return -1;
+    }
+
+    if (parse_id_key_text(row[cache->id_index_column], &id_key) != 0) {
+        return -1;
+    }
+
+    if (bptree_search(cache->id_index, id_key) != NULL) {
+        return -1;
+    }
+
+    if (duplicate_row_cells(row, cache->schema_count, &owned_row) != 0) {
+        return -1;
+    }
+
+    if (append_row_buffer(&cache->rows, owned_row) != 0) {
+        free_string_array(owned_row, cache->schema_count);
+        return -1;
+    }
+
+    if (bptree_insert(cache->id_index, id_key, owned_row) != 0) {
+        cache->rows.count--;
+        free_string_array(owned_row, cache->schema_count);
+        return -1;
+    }
+
+    if ((long)id_key >= cache->next_id) {
+        cache->next_id = (long)id_key + 1;
+    }
+
+    return 0;
+}
+
+static int build_insert_row(const ColDef *schema, int schema_count,
+                            char **columns, char **values, int count,
+                            int id_index, long next_id,
+                            char ***out_row, int *out_id_key)
+{
+    char generated_id[64];
+    char **aug_columns = NULL;
+    char **aug_values = NULL;
+    int explicit_id = 0;
+
+    if (schema == NULL || out_row == NULL || out_id_key == NULL) {
+        return -1;
+    }
+
+    *out_row = NULL;
+    *out_id_key = 0;
+
+    if (id_index < 0) {
+        return build_row_in_schema_order(schema, schema_count, columns, values, count, out_row);
+    }
+
+    explicit_id = insert_supplies_id(columns, count, schema_count);
+
+    if (!explicit_id) {
+        int index;
+
+        if (next_id > INT_MAX) {
+            return -1;
+        }
+
+        if (columns != NULL && count != schema_count - 1) {
+            return -1;
+        }
+
+        if (columns == NULL) {
+            return -1;
+        }
+
+        if (snprintf(generated_id, sizeof(generated_id), "%ld", next_id) < 0) {
+            return -1;
+        }
+
+        aug_columns = calloc((size_t)schema_count, sizeof(*aug_columns));
+        aug_values = calloc((size_t)schema_count, sizeof(*aug_values));
+        if (aug_columns == NULL || aug_values == NULL) {
+            free(aug_columns);
+            free(aug_values);
+            return -1;
+        }
+
+        if (columns != NULL) {
+            for (index = 0; index < count; ++index) {
+                aug_columns[index] = columns[index];
+                aug_values[index] = values[index];
+            }
+            aug_columns[count] = (char *)schema[id_index].name;
+            aug_values[count] = generated_id;
+        }
+
+        if (build_row_in_schema_order(schema, schema_count,
+                                      aug_columns, aug_values, schema_count,
+                                      out_row) != 0) {
+            free(aug_columns);
+            free(aug_values);
+            return -1;
+        }
+
+        free(aug_columns);
+        free(aug_values);
+    } else if (build_row_in_schema_order(schema, schema_count, columns, values, count, out_row) != 0) {
+        return -1;
+    }
+
+    if (parse_id_key_text((*out_row)[id_index], out_id_key) != 0) {
+        free_string_array(*out_row, schema_count);
+        *out_row = NULL;
+        return -1;
+    }
+
+    return 0;
+}
+
+static int parse_exact_id_lookup(const ParsedSQL *sql, int *out_id_key)
+{
+    if (sql == NULL || out_id_key == NULL ||
+        sql->where_count != 1 || sql->where == NULL) {
+        return 0;
+    }
+
+    if (!equals_ignore_case(sql->where[0].column, "id") ||
+        strcmp(sql->where[0].op, "=") != 0) {
+        return 0;
+    }
+
+    return parse_id_key_text(sql->where[0].value, out_id_key) == 0;
+}
+
+static int build_selection_from_index_lookup(TableIndexCache *cache, int id_key,
+                                             StorageRowBuffer *selection)
+{
+    char **row;
+
+    if (cache == NULL || selection == NULL) {
+        return -1;
+    }
+
+    selection->rows = NULL;
+    selection->count = 0;
+    selection->capacity = 0;
+    selection->row_width = cache->schema_count;
+
+    row = (char **)bptree_search(cache->id_index, id_key);
+    if (row == NULL) {
+        return 0;
+    }
+
+    return append_row_buffer(selection, row);
 }
 
 static int load_table_rows(const char *table_path, int schema_count, StorageRowBuffer *rows)

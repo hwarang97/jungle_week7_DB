@@ -99,6 +99,23 @@ static ParsedSQL *make_select_one_column(const char *col_expr) {
     return sql;
 }
 
+static ParsedSQL *make_select_where_id(const char *col_expr, const char *id_text) {
+    ParsedSQL *sql = make_select_one_column(col_expr);
+    if (!sql) return NULL;
+
+    sql->where_count = 1;
+    sql->where = calloc(1, sizeof(WhereClause));
+    if (!sql->where) {
+        free_parsed(sql);
+        return NULL;
+    }
+
+    strcpy(sql->where[0].column, "id");
+    strcpy(sql->where[0].op, "=");
+    strncpy(sql->where[0].value, id_text, sizeof(sql->where[0].value) - 1);
+    return sql;
+}
+
 /* ─── 테스트 케이스 ──────────────────────────────────────── */
 
 static void test_select_all_returns_rowset(void) {
@@ -230,6 +247,21 @@ static void test_sum_on_varchar_fails(void) {
     free_parsed(sql);
 }
 
+static void test_select_where_id_returns_single_row(void) {
+    fprintf(stderr, "[ROWSET: WHERE id = ? fast path]\n");
+    ParsedSQL *sql = make_select_where_id("item", "3");
+    RowSet *rs = NULL;
+    int status = storage_select_result("orders", sql, &rs);
+
+    CHECK(status == 0, "status == 0");
+    CHECK(rs && rs->row_count == 1 && rs->col_count == 1, "single-row result");
+    if (rs && rs->row_count == 1 && rs->col_count == 1) {
+        CHECK(strcmp(rs->rows[0][0], "cherry") == 0, "id=3 -> cherry");
+    }
+    rowset_free(rs);
+    free_parsed(sql);
+}
+
 static void test_aggregate_unknown_column(void) {
     fprintf(stderr, "[AGGREGATE: SUM(noexist) — 컬럼 없음 에러]\n");
     ParsedSQL *sql = make_select_one_column("SUM(noexist)");
@@ -272,6 +304,7 @@ int main(void) {
     test_max_date();
     test_sum_on_varchar_fails();
     test_aggregate_unknown_column();
+    test_select_where_id_returns_single_row();
     test_rowset_free_null_safe();
     test_print_rowset_null_safe();
 
