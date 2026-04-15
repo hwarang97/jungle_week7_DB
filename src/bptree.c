@@ -402,3 +402,31 @@ int bptree_insert(BPTree *tree, int key, void *value)
 
     return bptree_split_leaf(tree, leaf, key, value);
 }
+
+int bptree_insert_unique(BPTree *tree, int key, void *value)
+{
+    BPTreeNode *leaf;
+    int found;
+    int insert_index;
+
+    if (!tree || !tree->root) {
+        return -1;
+    }
+
+    leaf = bptree_find_leaf(tree, key);
+    if (!leaf) {
+        return -1;
+    }
+
+    insert_index = bptree_find_key_index(leaf, key, &found);
+    if (found) {
+        return 1;
+    }
+
+    if (leaf->key_count < BPTREE_MAX_KEYS) {
+        bptree_insert_into_leaf(leaf, insert_index, key, value);
+        return 0;
+    }
+
+    return bptree_split_leaf(tree, leaf, key, value);
+}

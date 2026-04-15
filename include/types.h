@@ -204,6 +204,8 @@ int        storage_select(const char *table, ParsedSQL *sql);
 int        storage_delete(const char *table, ParsedSQL *sql);
 int        storage_update(const char *table, ParsedSQL *sql);
 int        storage_create(const char *table, char **col_defs, int count);
+int        storage_bulk_begin(const char *table);
+int        storage_bulk_end(const char *table);
 
 /* ─── Phase 1 신설 함수 (지용 feature/p1-rowset 에서 본문 구현) ───
  *

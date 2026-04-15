@@ -1,7 +1,9 @@
 #ifndef BPTREE_H
 #define BPTREE_H
 
-#define BPTREE_ORDER 4
+#ifndef BPTREE_ORDER
+#define BPTREE_ORDER 64
+#endif
 #define BPTREE_MAX_KEYS (BPTREE_ORDER - 1)
 #define BPTREE_MAX_CHILDREN (BPTREE_ORDER)
 
@@ -36,5 +38,6 @@ void bptree_destroy(BPTree *tree);
 BPTreeNode *bptree_create_node(int is_leaf);
 void *bptree_search(BPTree *tree, int key);
 int bptree_insert(BPTree *tree, int key, void *value);
+int bptree_insert_unique(BPTree *tree, int key, void *value);
 
 #endif

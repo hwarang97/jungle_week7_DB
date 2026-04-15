@@ -132,6 +132,13 @@ static int prepare_fixture(int row_count)
         return -1;
     }
 
+    if (storage_bulk_begin(BENCH_TABLE) != 0) {
+        fprintf(stderr,
+                "[bench] storage_bulk_begin failed for table='%s'\n",
+                BENCH_TABLE);
+        return -1;
+    }
+
     for (i = 1; i <= row_count; ++i) {
         char name_text[64];
         char age_text[32];
@@ -147,13 +154,21 @@ static int prepare_fixture(int row_count)
             fprintf(stderr,
                     "[bench] storage_insert failed at row=%d table='%s' name='%s' age='%s'\n",
                     i, BENCH_TABLE, name_text, age_text);
+            storage_bulk_end(BENCH_TABLE);
             return -1;
         }
 
-        if (i % 10000 == 0 || i == row_count) {
+        if (i % 100000 == 0 || i == row_count) {
             printf("[bench] fixture progress rows=%d inserted=%d\n", row_count, i);
             fflush(stdout);
         }
+    }
+
+    if (storage_bulk_end(BENCH_TABLE) != 0) {
+        fprintf(stderr,
+                "[bench] storage_bulk_end failed for table='%s'\n",
+                BENCH_TABLE);
+        return -1;
     }
 
     return 0;
@@ -300,9 +315,6 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        printf("\n%s%s[hint]%s compare another order with %smake bench-sql-index CFLAGS=\"... -DBPTREE_ORDER=32\"%s\n",
-               ansi_bold(), ansi_cyan(), ansi_reset(),
-               ansi_bold(), ansi_reset());
         return 0;
     }
 
@@ -315,8 +327,5 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("\n%s%s[hint]%s compare another order with %smake bench-sql-index CFLAGS=\"... -DBPTREE_ORDER=32\"%s\n",
-           ansi_bold(), ansi_cyan(), ansi_reset(),
-           ansi_bold(), ansi_reset());
     return 0;
 }
