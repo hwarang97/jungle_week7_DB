@@ -38,6 +38,31 @@ typedef struct CachedRow {
     int cell_count;
 } CachedRow;
 
+static const char *ansi_reset(void)
+{
+    return "\033[0m";
+}
+
+static const char *ansi_bold(void)
+{
+    return "\033[1m";
+}
+
+static const char *ansi_cyan(void)
+{
+    return "\033[36m";
+}
+
+static const char *ansi_green(void)
+{
+    return "\033[32m";
+}
+
+static const char *ansi_yellow(void)
+{
+    return "\033[33m";
+}
+
 typedef struct TableIndexCache {
     char table[64];
     int schema_count;
@@ -143,6 +168,7 @@ static int try_build_indexed_rowset(const char *table, const char *table_path,
                                     int schema_count, RowSet **out);
 static int build_rowset_from_single_row(const ParsedSQL *sql, const ColDef *schema,
                                         int schema_count, char **row, RowSet **out);
+static void log_select_path(const ParsedSQL *sql, const char *mode, const char *detail);
 
 /* ─── Phase 1: RowSet 인프라 ──────────────────────────────────
  *
@@ -316,6 +342,9 @@ int storage_select_result(const char *table, ParsedSQL *sql, RowSet **out)
         goto cleanup;
     }
 
+    log_select_path(sql, "linear-scan",
+                    (sql->where_count > 0 && sql->where != NULL) ? sql->where[0].column : "*");
+
     /* WHERE 컬럼 사전 검증 — 빈 테이블 때문에 evaluate_select_clause 가
      * 호출되지 않아도 컬럼 오타를 잡아준다. */
     if (sql->where_count > 0 && sql->where != NULL) {
@@ -480,7 +509,7 @@ int storage_create(const char *table, char **col_defs, int count)
     }
     schema_fp = NULL;
 
-    table_fp = fopen(table_path, "a");
+    table_fp = fopen(table_path, "w");
     if (table_fp == NULL) {
         goto cleanup;
     }
@@ -2627,15 +2656,24 @@ void print_rowset(FILE *out, const RowSet *rs)
 
     if (out == NULL || rs == NULL) return;
 
+    fprintf(out, "%s%s[SELECT RESULT]%s columns=%s%d%s rows=%s%d%s\n",
+            ansi_bold(), ansi_cyan(), ansi_reset(),
+            ansi_bold(), rs->col_count, ansi_reset(),
+            ansi_bold(), rs->row_count, ansi_reset());
+
     /* 헤더 */
+    fprintf(out, "%s[header]%s ", ansi_green(), ansi_reset());
     for (j = 0; j < rs->col_count; j++) {
         if (j > 0) fprintf(out, " | ");
-        fprintf(out, "%s", rs->col_names[j] ? rs->col_names[j] : "");
+        fprintf(out, "%s%s%s", ansi_bold(),
+                rs->col_names[j] ? rs->col_names[j] : "",
+                ansi_reset());
     }
     fprintf(out, "\n");
 
     /* 데이터 행 */
     for (i = 0; i < rs->row_count; i++) {
+        fprintf(out, "%s[row %d]%s ", ansi_yellow(), i + 1, ansi_reset());
         for (j = 0; j < rs->col_count; j++) {
             if (j > 0) fprintf(out, " | ");
             fprintf(out, "%s", rs->rows[i][j] ? rs->rows[i][j] : "");
@@ -2644,7 +2682,9 @@ void print_rowset(FILE *out, const RowSet *rs)
     }
 
     /* 푸터 */
-    fprintf(out, "(%d rows)\n", rs->row_count);
+    fprintf(out, "%s%s[rows]%s total=%s%d%s\n",
+            ansi_bold(), ansi_cyan(), ansi_reset(),
+            ansi_bold(), rs->row_count, ansi_reset());
 }
 
 /* 일반 SELECT 결과를 RowSet 으로 패키징.
@@ -2943,6 +2983,8 @@ static int try_build_indexed_rowset(const char *table, const char *table_path,
         return -1;
     }
 
+    log_select_path(sql, "indexed-bptree", "id");
+
     row = (CachedRow *)bptree_search(cache->tree, (int)id_value);
     if (row == NULL) {
         StorageRowBuffer empty = {0};
@@ -2950,6 +2992,31 @@ static int try_build_indexed_rowset(const char *table, const char *table_path,
     }
 
     return build_rowset_from_single_row(sql, schema, schema_count, row->cells, out) == 0 ? 1 : -1;
+}
+
+static void log_select_path(const ParsedSQL *sql, const char *mode, const char *detail)
+{
+    const char *column = detail;
+    const char *trace_enabled = getenv("STORAGE_TRACE_SELECT");
+
+    if (sql == NULL || mode == NULL || trace_enabled == NULL || trace_enabled[0] == '\0') {
+        return;
+    }
+
+    if ((column == NULL || column[0] == '\0') &&
+        sql->where_count > 0 && sql->where != NULL) {
+        column = sql->where[0].column;
+    }
+
+    if (column == NULL || column[0] == '\0') {
+        column = "*";
+    }
+
+    fprintf(stderr, "%s%s[storage]%s %s%s%s on table %s'%s'%s (column=%s%s%s)\n",
+            ansi_bold(), ansi_cyan(), ansi_reset(),
+            ansi_bold(), mode, ansi_reset(),
+            ansi_bold(), sql->table, ansi_reset(),
+            ansi_bold(), column, ansi_reset());
 }
 
 /* "COUNT(*)" / "SUM(price)" / "AVG ( age )" 같은 함수 호출형 컬럼 인식.

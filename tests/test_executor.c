@@ -126,6 +126,45 @@ static char *read_text_file(const char *path)
     return buffer;
 }
 
+static char *strip_ansi_sequences(const char *source)
+{
+    size_t length;
+    char *clean;
+    size_t read_index;
+    size_t write_index;
+
+    if (source == NULL) {
+        return NULL;
+    }
+
+    length = strlen(source);
+    clean = (char *)malloc(length + 1U);
+    if (clean == NULL) {
+        return NULL;
+    }
+
+    read_index = 0;
+    write_index = 0;
+    while (source[read_index] != '\0') {
+        if (source[read_index] == '\033' && source[read_index + 1] == '[') {
+            read_index += 2;
+            while (source[read_index] != '\0' &&
+                   (source[read_index] < '@' || source[read_index] > '~')) {
+                read_index++;
+            }
+            if (source[read_index] != '\0') {
+                read_index++;
+            }
+            continue;
+        }
+
+        clean[write_index++] = source[read_index++];
+    }
+
+    clean[write_index] = '\0';
+    return clean;
+}
+
 static int write_text_file(const char *path, const char *content)
 {
     FILE *file;
@@ -198,6 +237,7 @@ static int capture_stdout_for_select(ParsedSQL *sql, char **output)
 {
     int saved_stdout;
     FILE *redirected;
+    char *raw_output;
 
     fflush(stdout);
     saved_stdout = dup(fileno(stdout));
@@ -220,8 +260,14 @@ static int capture_stdout_for_select(ParsedSQL *sql, char **output)
     }
     close(saved_stdout);
 
-    *output = read_text_file(TEST_OUTPUT_PATH);
+    raw_output = read_text_file(TEST_OUTPUT_PATH);
     remove(TEST_OUTPUT_PATH);
+    if (raw_output == NULL) {
+        return 1;
+    }
+
+    *output = strip_ansi_sequences(raw_output);
+    free(raw_output);
     return (*output == NULL) ? 1 : 0;
 }
 
@@ -280,10 +326,11 @@ static int test_execute_select_with_where_order_limit(void)
         return 1;
     }
 
-    if (!contains_text(output, "name | age") ||
+    if (!contains_text(output, "[SELECT RESULT]") ||
+        !contains_text(output, "[header] name | age") ||
         !contains_text(output, "Dylan | 31") ||
         !contains_text(output, "Alice | 29") ||
-        !contains_text(output, "(2 rows)")) {
+        !contains_text(output, "[rows] total=2")) {
         free(output);
         free_parsed(sql);
         fail_test("SELECT output did not include the filtered and sorted rows.");
@@ -325,7 +372,9 @@ static int test_storage_select_count_star(void)
         return 1;
     }
 
-    if (!contains_text(output, "COUNT(*)") || !contains_text(output, "\n3\n")) {
+    if (!contains_text(output, "[header] COUNT(*)") ||
+        !contains_text(output, "[row 1] 3") ||
+        !contains_text(output, "[rows] total=1")) {
         free(output);
         free_parsed(sql);
         fail_test("COUNT(*) output was not correct.");

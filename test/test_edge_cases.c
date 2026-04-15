@@ -1,7 +1,11 @@
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "../src/bptree.h"
+#include "../include/types.h"
 
 typedef enum TestStatus {
     TEST_PASS,
@@ -19,6 +23,36 @@ typedef struct TestCase {
     const char *name;
     TestResult (*fn)(void);
 } TestCase;
+
+static const char *ansi_reset(void)
+{
+    return "\033[0m";
+}
+
+static const char *ansi_bold(void)
+{
+    return "\033[1m";
+}
+
+static const char *ansi_blue(void)
+{
+    return "\033[34m";
+}
+
+static const char *ansi_green(void)
+{
+    return "\033[32m";
+}
+
+static const char *ansi_yellow(void)
+{
+    return "\033[33m";
+}
+
+static const char *ansi_red(void)
+{
+    return "\033[31m";
+}
 
 #define PASS(msg) ((TestResult){TEST_PASS, msg})
 #define FAIL(msg) ((TestResult){TEST_FAIL, msg})
@@ -43,6 +77,153 @@ static int tree_height(BPTree *tree)
     }
 
     return height;
+}
+
+static void cleanup_sql_edge_fixture(const char *table)
+{
+    char schema_path[256];
+    char table_path[256];
+
+    snprintf(schema_path, sizeof(schema_path), "data/schema/%s.schema", table);
+    snprintf(table_path, sizeof(table_path), "data/tables/%s.csv", table);
+
+    remove(schema_path);
+    remove(table_path);
+}
+
+static ParsedSQL *make_select_all_where_equals(const char *table,
+                                               const char *column,
+                                               const char *value)
+{
+    ParsedSQL *sql = calloc(1, sizeof(ParsedSQL));
+
+    if (sql == NULL) {
+        return NULL;
+    }
+
+    sql->type = QUERY_SELECT;
+    strncpy(sql->table, table, sizeof(sql->table) - 1U);
+    sql->limit = -1;
+    sql->col_count = 1;
+    sql->columns = calloc(1, sizeof(char *));
+    sql->where = calloc(1, sizeof(WhereClause));
+    if (sql->columns == NULL || sql->where == NULL) {
+        free(sql->columns);
+        free(sql->where);
+        free(sql);
+        return NULL;
+    }
+
+    sql->columns[0] = strdup("*");
+    if (sql->columns[0] == NULL) {
+        free(sql->columns);
+        free(sql->where);
+        free(sql);
+        return NULL;
+    }
+
+    strncpy(sql->where[0].column, column, sizeof(sql->where[0].column) - 1U);
+    strcpy(sql->where[0].op, "=");
+    strncpy(sql->where[0].value, value, sizeof(sql->where[0].value) - 1U);
+    sql->where_count = 1;
+
+    return sql;
+}
+
+static void free_simple_select(ParsedSQL *sql)
+{
+    if (sql == NULL) {
+        return;
+    }
+
+    free(sql->columns[0]);
+    free(sql->columns);
+    free(sql->where);
+    free(sql);
+}
+
+static int prepare_sql_edge_users_fixture(void)
+{
+    char *col_defs[] = {"id INT", "name VARCHAR", "age INT"};
+
+    cleanup_sql_edge_fixture("edge_users");
+    return storage_create("edge_users", col_defs, 3);
+}
+
+static double elapsed_ms(clock_t start, clock_t end)
+{
+    return ((double)(end - start) * 1000.0) / (double)CLOCKS_PER_SEC;
+}
+
+static int prepare_sql_edge_bench_fixture(int row_count)
+{
+    char *col_defs[] = {"id INT", "name VARCHAR", "age INT"};
+    int i;
+
+    cleanup_sql_edge_fixture("edge_users");
+    if (storage_create("edge_users", col_defs, 3) != 0) {
+        return -1;
+    }
+
+    for (i = 1; i <= row_count; ++i) {
+        char id_text[32];
+        char name_text[64];
+        char age_text[32];
+        char *values[3];
+
+        snprintf(id_text, sizeof(id_text), "%d", i);
+        snprintf(name_text, sizeof(name_text), "user%d", i);
+        snprintf(age_text, sizeof(age_text), "%d", 20 + (i % 30));
+
+        values[0] = id_text;
+        values[1] = name_text;
+        values[2] = age_text;
+
+        if (storage_insert("edge_users", NULL, values, 3) != 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static double benchmark_sql_lookup(const char *column, int row_count, int lookups, int quote_value)
+{
+    int i;
+    clock_t start;
+    clock_t end;
+
+    start = clock();
+    for (i = 0; i < lookups; ++i) {
+        char value[64];
+        ParsedSQL *sql;
+        RowSet *rs = NULL;
+        int target = (i % row_count) + 1;
+
+        if (quote_value) {
+            snprintf(value, sizeof(value), "'user%d'", target);
+        } else {
+            snprintf(value, sizeof(value), "%d", target);
+        }
+
+        sql = make_select_all_where_equals("edge_users", column, value);
+        if (sql == NULL) {
+            return -1.0;
+        }
+
+        if (storage_select_result("edge_users", sql, &rs) != 0 ||
+            rs == NULL || rs->row_count != 1) {
+            rowset_free(rs);
+            free_simple_select(sql);
+            return -1.0;
+        }
+
+        rowset_free(rs);
+        free_simple_select(sql);
+    }
+    end = clock();
+
+    return elapsed_ms(start, end);
 }
 
 static TestResult tc01_empty_tree_search(void)
@@ -551,27 +732,187 @@ static TestResult tc22_internal_key_order(void)
 
 static TestResult tc23_sql_insert_select_id(void)
 {
-    return SKIP("B+ Tree 와 SQL INSERT/SELECT id 연동은 아직 구현되지 않음");
+    ParsedSQL *sql;
+    RowSet *rs = NULL;
+    char *row1[] = {"1", "jiun", "25"};
+    char *row2[] = {"2", "minsuk", "24"};
+    char *row3[] = {"3", "seokje", "26"};
+
+    if (prepare_sql_edge_users_fixture() != 0) {
+        return FAIL("SQL 테스트용 users fixture 생성 실패");
+    }
+
+    if (storage_insert("edge_users", NULL, row1, 3) != 0 ||
+        storage_insert("edge_users", NULL, row2, 3) != 0 ||
+        storage_insert("edge_users", NULL, row3, 3) != 0) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SQL fixture INSERT 실패");
+    }
+
+    sql = make_select_all_where_equals("edge_users", "id", "2");
+    if (sql == NULL) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT ParsedSQL 생성 실패");
+    }
+
+    if (storage_select_result("edge_users", sql, &rs) != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT WHERE id 실행 실패");
+    }
+
+    if (rs == NULL || rs->row_count != 1 || strcmp(rs->rows[0][1], "minsuk") != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT WHERE id 결과가 기대와 다름");
+    }
+
+    rowset_free(rs);
+    free_simple_select(sql);
+    cleanup_sql_edge_fixture("edge_users");
+    return PASS("INSERT 후 SELECT WHERE id = ? 결과가 올바름");
 }
 
 static TestResult tc24_sql_select_missing_id(void)
 {
-    return SKIP("B+ Tree 와 SQL SELECT id miss 처리 연동은 아직 구현되지 않음");
+    ParsedSQL *sql;
+    RowSet *rs = NULL;
+    char *row1[] = {"1", "jiun", "25"};
+
+    if (prepare_sql_edge_users_fixture() != 0) {
+        return FAIL("SQL 테스트용 users fixture 생성 실패");
+    }
+
+    if (storage_insert("edge_users", NULL, row1, 3) != 0) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SQL fixture INSERT 실패");
+    }
+
+    sql = make_select_all_where_equals("edge_users", "id", "999");
+    if (sql == NULL) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT ParsedSQL 생성 실패");
+    }
+
+    if (storage_select_result("edge_users", sql, &rs) != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("없는 id SELECT 실행 실패");
+    }
+
+    if (rs == NULL || rs->row_count != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("없는 id 는 빈 결과여야 함");
+    }
+
+    rowset_free(rs);
+    free_simple_select(sql);
+    cleanup_sql_edge_fixture("edge_users");
+    return PASS("없는 id 검색 시 빈 결과 반환");
 }
 
 static TestResult tc25_sql_select_non_index_field(void)
 {
-    return SKIP("인덱스 없는 필드에 대한 SQL 선형 탐색 연동은 아직 구현되지 않음");
+    ParsedSQL *sql;
+    RowSet *rs = NULL;
+    char *row1[] = {"1", "jiun", "25"};
+    char *row2[] = {"2", "minsuk", "24"};
+
+    if (prepare_sql_edge_users_fixture() != 0) {
+        return FAIL("SQL 테스트용 users fixture 생성 실패");
+    }
+
+    if (storage_insert("edge_users", NULL, row1, 3) != 0 ||
+        storage_insert("edge_users", NULL, row2, 3) != 0) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SQL fixture INSERT 실패");
+    }
+
+    sql = make_select_all_where_equals("edge_users", "name", "'minsuk'");
+    if (sql == NULL) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT ParsedSQL 생성 실패");
+    }
+
+    if (storage_select_result("edge_users", sql, &rs) != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("SELECT WHERE name 실행 실패");
+    }
+
+    if (rs == NULL || rs->row_count != 1 || strcmp(rs->rows[0][0], "2") != 0) {
+        rowset_free(rs);
+        free_simple_select(sql);
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("비인덱스 컬럼 조회 결과가 기대와 다름");
+    }
+
+    rowset_free(rs);
+    free_simple_select(sql);
+    cleanup_sql_edge_fixture("edge_users");
+    return PASS("name 조건 조회도 기존 선형 탐색으로 정상 동작");
 }
 
 static TestResult tc26_sql_performance_compare(void)
 {
-    return SKIP("SQL 연동 성능 비교는 인덱스 연결과 benchmark 구현 후 활성화 예정");
+    static char detail[256];
+    const int row_count = 2000;
+    const int lookups = 400;
+    double id_ms;
+    double name_ms;
+
+    if (prepare_sql_edge_bench_fixture(row_count) != 0) {
+        cleanup_sql_edge_fixture("edge_users");
+        return FAIL("성능 비교용 SQL fixture 생성 실패");
+    }
+
+    id_ms = benchmark_sql_lookup("id", row_count, lookups, 0);
+    name_ms = benchmark_sql_lookup("name", row_count, lookups, 1);
+    cleanup_sql_edge_fixture("edge_users");
+
+    if (id_ms <= 0.0 || name_ms <= 0.0) {
+        return FAIL("성능 비교 실행 중 조회 실패");
+    }
+
+    if (name_ms <= id_ms) {
+        snprintf(detail, sizeof(detail),
+                 "측정은 성공했지만 환경 영향으로 name scan %.3fms <= id index %.3fms",
+                 name_ms, id_ms);
+        return FAIL(detail);
+    }
+
+    snprintf(detail, sizeof(detail),
+             "id index %.3fms, name scan %.3fms로 인덱스 경로가 더 빨랐음",
+             id_ms, name_ms);
+    return PASS(detail);
 }
 
 static TestResult tc27_create_insert_destroy_memory(void)
 {
-    return SKIP("100건 삽입 후 destroy 메모리 검증은 전체 삽입 구현과 valgrind 환경이 필요함");
+    BPTree *tree = bptree_create();
+    int values[100];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 100; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("destroy 검증용 삽입 실패");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("100건 삽입 후 destroy 정상 종료");
 }
 
 static TestResult tc28_empty_tree_destroy(void)
@@ -629,19 +970,25 @@ static void run_case(const TestCase *test_case, int index, int total,
 {
     TestResult result = test_case->fn();
     const char *label = "PASS";
+    const char *label_color = ansi_green();
 
     if (result.status == TEST_FAIL) {
         label = "FAIL";
+        label_color = ansi_red();
         (*fail_count)++;
     } else if (result.status == TEST_SKIP) {
         label = "SKIP";
+        label_color = ansi_yellow();
         (*skip_count)++;
     } else {
         (*pass_count)++;
     }
 
-    printf("[EDGE %02d/%02d] %s %s\n", index, total, test_case->id, test_case->name);
-    printf("  -> %s: %s\n", label, result.detail);
+    printf("%s%s[EDGE %02d/%02d]%s %s%s%s %s\n",
+           ansi_bold(), ansi_blue(), index, total, ansi_reset(),
+           ansi_bold(), test_case->id, ansi_reset(), test_case->name);
+    printf("  -> %s%s%s%s: %s\n",
+           ansi_bold(), label_color, label, ansi_reset(), result.detail);
 }
 
 int main(void)
@@ -688,8 +1035,12 @@ int main(void)
         run_case(&tests[i], i + 1, total, &pass_count, &fail_count, &skip_count);
     }
 
-    printf("\nEdge-case summary: PASS=%d, FAIL=%d, SKIP=%d, TOTAL=%d\n",
-           pass_count, fail_count, skip_count, total);
+    printf("\n%s%s[EDGE SUMMARY]%s PASS=%s%d%s FAIL=%s%d%s SKIP=%s%d%s TOTAL=%s%d%s\n",
+           ansi_bold(), ansi_blue(), ansi_reset(),
+           ansi_green(), pass_count, ansi_reset(),
+           ansi_red(), fail_count, ansi_reset(),
+           ansi_yellow(), skip_count, ansi_reset(),
+           ansi_bold(), total, ansi_reset());
 
     return fail_count == 0 ? 0 : 1;
 }

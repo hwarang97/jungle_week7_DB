@@ -1,7 +1,9 @@
 #ifndef BPTREE_H
 #define BPTREE_H
 
+#ifndef BPTREE_ORDER
 #define BPTREE_ORDER 4
+#endif
 #define BPTREE_MAX_KEYS (BPTREE_ORDER - 1)
 #define BPTREE_MAX_CHILDREN (BPTREE_ORDER)
 
