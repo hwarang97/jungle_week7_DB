@@ -11,6 +11,8 @@ STRUCTURE_TEST_TARGET = test_structure
 SEARCH_TEST_TARGET = test_search
 TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
+BPTREE_SCALE_BENCH_TARGET = bench_bptree_scale
+SQL_BENCH_TARGET = bench_sql_index
 
 SQL_SRCS = $(SRC_DIR)/main.c \
            $(SRC_DIR)/parser.c \
@@ -41,6 +43,8 @@ RUN_BPTREE_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_TARGET)$(EXEE
 RUN_STRUCTURE_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(STRUCTURE_TEST_TARGET)$(EXEEXT)'"
 RUN_SEARCH_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SEARCH_TEST_TARGET)$(EXEEXT)'"
 RUN_BPTREE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_BENCH_TARGET)$(EXEEXT)'"
+RUN_BPTREE_SCALE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)'"
+RUN_SQL_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_BENCH_TARGET)$(EXEEXT)'"
 RUN_SQL_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TARGET)$(EXEEXT)'"
 RUN_SQL_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TEST_TARGET)$(EXEEXT)'"
 RUN_CURRENT_TARGET = powershell -NoProfile -Command "& '.\\$@$(EXEEXT)'"
@@ -50,6 +54,8 @@ RUN_BPTREE_TARGET = ./$(BPTREE_TARGET)$(EXEEXT)
 RUN_STRUCTURE_TEST_TARGET = ./$(STRUCTURE_TEST_TARGET)$(EXEEXT)
 RUN_SEARCH_TEST_TARGET = ./$(SEARCH_TEST_TARGET)$(EXEEXT)
 RUN_BPTREE_BENCH_TARGET = ./$(BPTREE_BENCH_TARGET)$(EXEEXT)
+RUN_BPTREE_SCALE_BENCH_TARGET = ./$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)
+RUN_SQL_BENCH_TARGET = ./$(SQL_BENCH_TARGET)$(EXEEXT)
 RUN_SQL_TARGET = ./$(SQL_TARGET)$(EXEEXT)
 RUN_SQL_TEST_TARGET = ./$(SQL_TEST_TARGET)$(EXEEXT)
 RUN_CURRENT_TARGET = ./$@$(EXEEXT)
@@ -77,6 +83,18 @@ $(BPTREE_BENCH_TARGET): $(BENCH_DIR)/bench_search.c $(SRC_DIR)/bptree.c
 
 bench: $(BPTREE_BENCH_TARGET)
 	$(RUN_BPTREE_BENCH_TARGET)
+
+$(BPTREE_SCALE_BENCH_TARGET): $(BENCH_DIR)/bench_bptree_scale.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+bench-bptree-scale: $(BPTREE_SCALE_BENCH_TARGET)
+	$(RUN_BPTREE_SCALE_BENCH_TARGET)
+
+$(SQL_BENCH_TARGET): $(BENCH_DIR)/bench_sql_index.c $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+bench-sql-index: $(SQL_BENCH_TARGET)
+	$(RUN_SQL_BENCH_TARGET)
 
 sqlparser: $(SQL_TARGET)
 
