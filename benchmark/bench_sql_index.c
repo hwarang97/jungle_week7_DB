@@ -8,8 +8,18 @@
 #include "../src/bptree.h"
 
 #define BENCH_TABLE "bench_users"
+
+#ifndef ID_LOOKUPS
 #define ID_LOOKUPS 500
+#endif
+
+#ifndef NAME_LOOKUPS
 #define NAME_LOOKUPS 500
+#endif
+
+#ifndef SQL_BENCH_ROW_COUNTS
+#define SQL_BENCH_ROW_COUNTS 10000, 100000, 1000000
+#endif
 
 static int parse_row_count_arg(const char *text, int *out_value)
 {
@@ -287,7 +297,7 @@ static int run_case(int row_count)
 
 int main(int argc, char **argv)
 {
-    int row_counts[] = {10000, 100000, 1000000};
+    int row_counts[] = {SQL_BENCH_ROW_COUNTS};
     int i;
     int single_row_count = 0;
 
@@ -299,6 +309,9 @@ int main(int argc, char **argv)
            ansi_green(), ansi_reset(),
            ansi_yellow(), ansi_reset());
     printf("%s%s[insert]%s fixture uses actual %sstorage_insert()%s with auto-generated ids\n",
+           ansi_bold(), ansi_cyan(), ansi_reset(),
+           ansi_bold(), ansi_reset());
+    printf("%s%s[hint]%s increase samples with %smake bench-sql-index CFLAGS=\"... -DID_LOOKUPS=1000 -DNAME_LOOKUPS=1000\"%s\n",
            ansi_bold(), ansi_cyan(), ansi_reset(),
            ansi_bold(), ansi_reset());
 

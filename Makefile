@@ -13,6 +13,8 @@ TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
 BPTREE_SCALE_BENCH_TARGET = bench_bptree_scale
 SQL_BENCH_TARGET = bench_sql_index
+INDEX_GRAPH_BENCH_TARGET = bench_index_graph
+DB_PERF_BENCH_TARGET = db_benchmark
 
 SQL_SRCS = $(SRC_DIR)/main.c \
            $(SRC_DIR)/parser.c \
@@ -45,6 +47,8 @@ RUN_SEARCH_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SEARCH_TEST_TAR
 RUN_BPTREE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_BENCH_TARGET)$(EXEEXT)'"
 RUN_BPTREE_SCALE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)'"
 RUN_SQL_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_BENCH_TARGET)$(EXEEXT)'"
+RUN_INDEX_GRAPH_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(INDEX_GRAPH_BENCH_TARGET)$(EXEEXT)' $(ROWS) $(REQUESTS) --json"
+RUN_DB_PERF_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(DB_PERF_BENCH_TARGET)$(EXEEXT)'"
 RUN_SQL_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TARGET)$(EXEEXT)'"
 RUN_SQL_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TEST_TARGET)$(EXEEXT)'"
 RUN_CURRENT_TARGET = powershell -NoProfile -Command "& '.\\$@$(EXEEXT)'"
@@ -56,14 +60,19 @@ RUN_SEARCH_TEST_TARGET = ./$(SEARCH_TEST_TARGET)$(EXEEXT)
 RUN_BPTREE_BENCH_TARGET = ./$(BPTREE_BENCH_TARGET)$(EXEEXT)
 RUN_BPTREE_SCALE_BENCH_TARGET = ./$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)
 RUN_SQL_BENCH_TARGET = ./$(SQL_BENCH_TARGET)$(EXEEXT)
+RUN_INDEX_GRAPH_BENCH_TARGET = ./$(INDEX_GRAPH_BENCH_TARGET)$(EXEEXT) $(ROWS) $(REQUESTS) --json
+RUN_DB_PERF_BENCH_TARGET = ./$(DB_PERF_BENCH_TARGET)$(EXEEXT)
 RUN_SQL_TARGET = ./$(SQL_TARGET)$(EXEEXT)
 RUN_SQL_TEST_TARGET = ./$(SQL_TEST_TARGET)$(EXEEXT)
 RUN_CURRENT_TARGET = ./$@$(EXEEXT)
 endif
 
-.PHONY: all clean test bench sqlparser test-sqlparser valgrind test_storage_all run json
+.PHONY: all clean test bench bench-bptree-scale bench-sql-index bench-index-graph test-db-benchmark test-sqlparser valgrind test_storage_all run json
 
-all: $(BPTREE_TARGET)
+ROWS ?= 10000
+REQUESTS ?= 5000
+
+all: $(BPTREE_TARGET) $(DB_PERF_BENCH_TARGET)
 
 $(BPTREE_TARGET): $(SRC_DIR)/bptree_main.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
@@ -96,7 +105,17 @@ $(SQL_BENCH_TARGET): $(BENCH_DIR)/bench_sql_index.c $(SRC_DIR)/storage.c $(SRC_D
 bench-sql-index: $(SQL_BENCH_TARGET)
 	$(RUN_SQL_BENCH_TARGET)
 
-sqlparser: $(SQL_TARGET)
+$(INDEX_GRAPH_BENCH_TARGET): $(BENCH_DIR)/bench_index_graph.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+bench-index-graph: $(INDEX_GRAPH_BENCH_TARGET)
+	$(RUN_INDEX_GRAPH_BENCH_TARGET)
+
+$(DB_PERF_BENCH_TARGET): $(SRC_DIR)/benchmark.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+test-db-benchmark: $(DB_PERF_BENCH_TARGET)
+	$(RUN_DB_PERF_BENCH_TARGET) --verify
 
 $(SQL_TARGET): $(SQL_SRCS)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -134,7 +153,7 @@ valgrind: $(SQL_TARGET)
 	valgrind --leak-check=full --error-exitcode=1 $(RUN_SQL_TARGET) $(SQL)
 
 clean:
-	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET)
+	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET) $(BPTREE_SCALE_BENCH_TARGET) $(SQL_BENCH_TARGET) $(INDEX_GRAPH_BENCH_TARGET) $(DB_PERF_BENCH_TARGET)
 	rm -f $(SQL_TARGET) $(SQL_TEST_TARGET) $(STORAGE_TEST_TARGETS)
 	rm -f data/*.csv data/*.schema
 	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp

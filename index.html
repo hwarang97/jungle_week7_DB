@@ -69,7 +69,8 @@
     grid-template-columns: 1fr 1fr;
     gap: 16px;
     padding: 16px 24px;
-    height: calc(100vh - 56px);
+    min-height: calc(100vh - 56px);
+    height: auto;
   }
   .panel {
     background: var(--panel);
@@ -189,28 +190,52 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 10px 12px;
+    padding: 0;
     font-family: "JetBrains Mono", "Menlo", monospace;
     font-size: 13px;
-    line-height: 1.6;
     color: var(--text);
     overflow-x: auto;
-    white-space: pre;
   }
-  /* 결과 표의 헤더 줄 강조 (첫 줄) */
-  .stmt-result-table .result-header {
+  /* 진짜 HTML 테이블 — 사각형 그리드 */
+  .stmt-result-table table.grid {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+  }
+  .stmt-result-table table.grid th,
+  .stmt-result-table table.grid td {
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    text-align: left;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  .stmt-result-table table.grid thead th {
+    background: rgba(189, 147, 249, 0.12);
     color: var(--accent);
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-    display: block;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid var(--accent);
+    position: sticky;
+    top: 0;
   }
-  .stmt-result-table .result-footer {
+  .stmt-result-table table.grid tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .stmt-result-table table.grid tbody tr:hover {
+    background: rgba(80, 250, 123, 0.08);
+  }
+  .stmt-result-table table.grid tbody td.empty-row {
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+  }
+  .stmt-result-footer {
     color: var(--muted);
     font-size: 11px;
-    margin-top: 4px;
-    display: block;
+    padding: 6px 12px;
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.15);
   }
 
   /* 토글 스위치 */
@@ -281,6 +306,100 @@
   }
   .meta.err { color: var(--error); }
 
+  .benchmark-panel {
+    grid-column: 1 / -1;
+    min-height: 360px;
+  }
+  .benchmark-controls {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .benchmark-controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .benchmark-controls label:first-of-type {
+    margin-left: auto;
+  }
+  .benchmark-controls input {
+    width: 96px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font: inherit;
+  }
+  .benchmark-body {
+    flex: 1;
+    overflow: auto;
+    padding: 14px;
+    background: var(--code);
+  }
+  table.benchmark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.benchmark-table th,
+  table.benchmark-table td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  table.benchmark-table th:first-child,
+  table.benchmark-table td:first-child {
+    text-align: left;
+  }
+  table.benchmark-table thead th {
+    color: var(--accent);
+    background: rgba(88, 166, 255, 0.08);
+  }
+  .benchmark-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .metric-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    padding: 10px 12px;
+  }
+  .metric-card .label {
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .metric-card .value {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .benchmark-note {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    .benchmark-summary { grid-template-columns: 1fr 1fr; }
+    .benchmark-controls label { margin-left: 0; }
+  }
+  @media (max-width: 560px) {
+    .benchmark-summary { grid-template-columns: 1fr; }
+  }
+
   kbd {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -346,6 +465,30 @@ DELETE FROM users WHERE id = 1;</textarea>
     <div id="meta" class="meta" style="display:none"></div>
   </section>
 
+  <section class="panel benchmark-panel">
+    <div class="panel-header">
+      <span>DB Index Performance</span>
+      <span id="bench-status" class="status">ready</span>
+    </div>
+    <div class="benchmark-controls">
+      <button id="bench-10k" type="button">10K rows</button>
+      <button id="bench-100k" type="button">100K rows</button>
+      <button id="bench-1m" type="button">1M rows</button>
+      <button id="bench-all" class="secondary" type="button">Run all</button>
+      <label>
+        order
+        <input id="bench-order" type="number" min="2" max="1024" step="2" value="4" />
+      </label>
+      <label>
+        queries
+        <input id="bench-queries" type="number" min="1" max="100000" value="5000" />
+      </label>
+    </div>
+    <div id="benchmark-output" class="benchmark-body">
+      <div style="color:var(--muted);">Choose a row count to compare full scan, B-Tree, and B+Tree point lookups.</div>
+    </div>
+  </section>
+
 </main>
 
 <!-- CodeMirror 5 — 코어 + SQL 모드 + JS(JSON) 모드 -->
@@ -370,6 +513,14 @@ DELETE FROM users WHERE id = 1;</textarea>
   const $jsonHost       = document.getElementById('json-host');
   const $viewCards      = document.getElementById('view-cards');
   const $viewJson       = document.getElementById('view-json');
+  const $benchStatus    = document.getElementById('bench-status');
+  const $benchOrder     = document.getElementById('bench-order');
+  const $benchQueries   = document.getElementById('bench-queries');
+  const $benchmarkOut   = document.getElementById('benchmark-output');
+  const $bench10k       = document.getElementById('bench-10k');
+  const $bench100k      = document.getElementById('bench-100k');
+  const $bench1m        = document.getElementById('bench-1m');
+  const $benchAll       = document.getElementById('bench-all');
 
   /* 마지막 응답을 캐시해서 토글 시 다시 렌더 */
   let lastResult = null;
@@ -466,42 +617,78 @@ DELETE FROM users WHERE id = 1;</textarea>
     );
   }
 
-  /* SELECT 결과 표 (server.py 의 _result 텍스트) 를 HTML 로 꾸미기.
+  /* SELECT 결과 표 (server.py 의 _result 텍스트) 를 진짜 HTML <table> 로 변환.
    *
-   *   id | name           ← 첫 줄: 헤더 (강조)
-   *   1 | alice           ← 데이터
+   *   id | name           ← 첫 줄: 헤더 → <thead>
+   *   1 | alice           ← 데이터 → <tbody>
    *   2 | bob
-   *   (2 rows)            ← 마지막 줄: 푸터 (회색)
+   *   (2 rows)            ← 마지막 줄: 푸터 → 하단 메타 줄
+   *
+   * storage.c 의 print_rowset 출력 형식을 가정 (' | ' 구분자, 마지막 "(N rows)").
+   * 단일 값 (예: COUNT(*) → "2") 처럼 구분자 없는 경우도 단일 컬럼 표로 렌더한다.
    */
+  function splitRow(line) {
+    /* ' | ' 정확 구분 — 데이터에 파이프가 들어있어도 공백 사이만 끊는다. */
+    return line.split(/\s\|\s/);
+  }
+
   function renderResultTable(rawText) {
     if (!rawText) return '';
-    const lines = rawText.split('\n');
+    const lines = rawText.split('\n').filter(function (l) { return l.length > 0; });
     if (lines.length === 0) return '';
 
-    let header = '';
     let footer = '';
     let bodyLines = lines.slice();
 
-    // 첫 줄 = 헤더
-    if (bodyLines.length > 0) {
-      header = bodyLines.shift();
-    }
-    // 마지막 줄이 "(N rows)" 형태면 푸터
+    // 마지막 줄이 "(N rows)" 형태면 푸터로 분리
     if (bodyLines.length > 0 && /^\(\d+ rows?\)$/.test(bodyLines[bodyLines.length - 1])) {
       footer = bodyLines.pop();
     }
 
+    // 헤더 = 첫 줄
+    if (bodyLines.length === 0) {
+      // 헤더조차 없으면 빈 결과 — 푸터만 표시
+      return '<div class="stmt-result-wrap">' +
+               '<div class="stmt-result-label">▼ 결과</div>' +
+               '<div class="stmt-result-table">' +
+                 (footer ? '<div class="stmt-result-footer">' + esc(footer) + '</div>' : '') +
+               '</div>' +
+             '</div>';
+    }
+
+    const headerCells = splitRow(bodyLines.shift());
+    const dataRows = bodyLines.map(splitRow);
+
     let html = '<div class="stmt-result-wrap">' +
                  '<div class="stmt-result-label">▼ 결과</div>' +
-                 '<div class="stmt-result-table">';
-    if (header) {
-      html += '<span class="result-header">' + esc(header) + '</span>';
+                 '<div class="stmt-result-table">' +
+                   '<table class="grid">';
+
+    // <thead>
+    html += '<thead><tr>';
+    for (const h of headerCells) {
+      html += '<th>' + esc(h) + '</th>';
     }
-    if (bodyLines.length > 0) {
-      html += esc(bodyLines.join('\n'));
+    html += '</tr></thead>';
+
+    // <tbody>
+    html += '<tbody>';
+    if (dataRows.length === 0) {
+      html += '<tr><td class="empty-row" colspan="' + headerCells.length + '">(0 rows)</td></tr>';
+    } else {
+      for (const row of dataRows) {
+        html += '<tr>';
+        for (let i = 0; i < headerCells.length; i++) {
+          const cell = i < row.length ? row[i] : '';
+          html += '<td>' + esc(cell) + '</td>';
+        }
+        html += '</tr>';
+      }
     }
+    html += '</tbody></table>';
+
     if (footer) {
-      html += '<span class="result-footer">' + esc(footer) + '</span>';
+      html += '<div class="stmt-result-footer">' + esc(footer) + '</div>';
     }
     html += '</div></div>';
     return html;
@@ -627,7 +814,224 @@ DELETE FROM users WHERE id = 1;</textarea>
   }
 
   // 이벤트 핸들러 등록
+  function setBenchStatus(text, kind) {
+    $benchStatus.textContent = text;
+    $benchStatus.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function formatNumber(value) {
+    return Number(value || 0).toLocaleString();
+  }
+
+  function formatMs(value) {
+    return Number(value || 0).toFixed(3) + ' ms';
+  }
+
+  function formatNs(value) {
+    return Number(value || 0).toFixed(1) + ' ns';
+  }
+
+  function formatPerRowNs(totalMs, rows) {
+    if (!rows) return '0.0 ns';
+    return formatNs(Number(totalMs || 0) * 1000000 / Number(rows));
+  }
+
+  function insertMethodRows(result) {
+    const btree = result.btree;
+    const bplus = result.bplus_tree;
+    return [
+      {
+        name: 'Table only',
+        total: formatMs(result.table_build_ms),
+        avg: formatPerRowNs(result.table_build_ms, result.size),
+        comparisons: formatNumber(result.table_insert_comparisons || 0),
+        height: '-',
+        nodes: '-',
+        splits: '-',
+        speedup: '1.0x',
+      },
+      {
+        name: 'Table + B-Tree index',
+        total: formatMs(Number(result.table_build_ms || 0) + Number(btree.build_ms || 0)),
+        avg: formatPerRowNs(Number(result.table_build_ms || 0) + Number(btree.build_ms || 0), result.size),
+        comparisons: formatNumber(btree.insert_comparisons || 0),
+        height: btree.height,
+        nodes: formatNumber(btree.nodes),
+        splits: formatNumber(btree.splits),
+        speedup: Number(result.speedup.btree_insert_vs_table || 0).toFixed(2) + 'x',
+      },
+      {
+        name: 'Table + B+Tree index',
+        total: formatMs(Number(result.table_build_ms || 0) + Number(bplus.build_ms || 0)),
+        avg: formatPerRowNs(Number(result.table_build_ms || 0) + Number(bplus.build_ms || 0), result.size),
+        comparisons: formatNumber(bplus.insert_comparisons || 0),
+        height: bplus.height,
+        nodes: formatNumber(bplus.nodes),
+        splits: formatNumber(bplus.splits),
+        speedup: Number(result.speedup.bplus_insert_vs_table || 0).toFixed(2) + 'x',
+      },
+    ];
+  }
+
+  function renderInsertTable(result) {
+    const rows = insertMethodRows(result);
+    let html = '<div class="benchmark-note" style="margin:0 0 8px 0;">Insert / index build</div>' +
+      '<table class="benchmark-table" style="margin-bottom:14px;"><thead><tr>' +
+      '<th>Method</th><th>Insert total</th><th>Avg per row</th>' +
+      '<th>Comparisons</th><th>Height</th><th>Nodes</th><th>Splits</th><th>Speedup</th>' +
+      '</tr></thead><tbody>';
+    for (const row of rows) {
+      html += '<tr>' +
+        '<td>' + esc(row.name) + '</td>' +
+        '<td>' + esc(row.total) + '</td>' +
+        '<td>' + esc(row.avg) + '</td>' +
+        '<td>' + esc(row.comparisons) + '</td>' +
+        '<td>' + esc(row.height) + '</td>' +
+        '<td>' + esc(row.nodes) + '</td>' +
+        '<td>' + esc(row.splits) + '</td>' +
+        '<td>' + esc(row.speedup) + '</td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function benchmarkMethodRows(result) {
+    const full = result.full_scan;
+    const btree = result.btree;
+    const bplus = result.bplus_tree;
+    return [
+      {
+        name: 'Full scan',
+        search: formatMs(full.total_ms),
+        avg: formatNs(full.avg_ns),
+        comparisons: formatNumber(full.comparisons),
+        height: '-',
+        nodes: '-',
+        splits: '-',
+        speedup: '1.0x',
+      },
+      {
+        name: 'B-Tree',
+        search: formatMs(btree.search.total_ms),
+        avg: formatNs(btree.search.avg_ns),
+        comparisons: formatNumber(btree.search.comparisons),
+        height: btree.height,
+        nodes: formatNumber(btree.nodes),
+        splits: formatNumber(btree.splits),
+        speedup: Number(result.speedup.btree_vs_full_scan || 0).toFixed(1) + 'x',
+      },
+      {
+        name: 'B+Tree',
+        search: formatMs(bplus.search.total_ms),
+        avg: formatNs(bplus.search.avg_ns),
+        comparisons: formatNumber(bplus.search.comparisons),
+        height: bplus.height,
+        nodes: formatNumber(bplus.nodes),
+        splits: formatNumber(bplus.splits),
+        speedup: Number(result.speedup.bplus_vs_full_scan || 0).toFixed(1) + 'x',
+      },
+    ];
+  }
+
+  function renderBenchmarkTable(result) {
+    const rows = benchmarkMethodRows(result);
+    let html = '<div class="benchmark-note" style="margin:0 0 8px 0;">Search</div>' +
+      '<table class="benchmark-table"><thead><tr>' +
+      '<th>Method</th><th>Search total</th><th>Avg lookup</th>' +
+      '<th>Comparisons</th><th>Height</th><th>Nodes</th><th>Splits</th><th>Speedup</th>' +
+      '</tr></thead><tbody>';
+    for (const row of rows) {
+      html += '<tr>' +
+        '<td>' + esc(row.name) + '</td>' +
+        '<td>' + esc(row.search) + '</td>' +
+        '<td>' + esc(row.avg) + '</td>' +
+        '<td>' + esc(row.comparisons) + '</td>' +
+        '<td>' + esc(row.height) + '</td>' +
+        '<td>' + esc(row.nodes) + '</td>' +
+        '<td>' + esc(row.splits) + '</td>' +
+        '<td>' + esc(row.speedup) + '</td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function renderSingleBenchmark(result) {
+    const full = result.full_scan;
+    const btree = result.btree;
+    const bplus = result.bplus_tree;
+    const bestSpeedup = Math.max(
+      Number(result.speedup.btree_vs_full_scan || 0),
+      Number(result.speedup.bplus_vs_full_scan || 0)
+    );
+
+    return '<div class="benchmark-summary">' +
+      '<div class="metric-card"><div class="label">Rows</div><div class="value">' + formatNumber(result.size) + '</div></div>' +
+      '<div class="metric-card"><div class="label">Queries</div><div class="value">' + formatNumber(result.query_count) + '</div></div>' +
+      '<div class="metric-card"><div class="label">Order</div><div class="value">' + formatNumber(result.order || 4) + '</div></div>' +
+      '<div class="metric-card"><div class="label">Full scan total</div><div class="value">' + formatMs(full.total_ms) + '</div></div>' +
+      '<div class="metric-card"><div class="label">Best speedup</div><div class="value">' + bestSpeedup.toFixed(1) + 'x</div></div>' +
+      '</div>' +
+      renderInsertTable(result) +
+      renderBenchmarkTable(result) +
+      '<div class="benchmark-note">B-Tree height ' + esc(btree.height) +
+      ', B+Tree height ' + esc(bplus.height) +
+      '. Full scan comparisons grow with row count, while index lookup follows the tree path.</div>';
+  }
+
+  function renderBenchmarkResult(data) {
+    if (data.error) {
+      $benchmarkOut.innerHTML = '<div style="color:var(--error);">' + esc(data.error) + '</div>' +
+        (data.stderr ? '<pre>' + esc(data.stderr) + '</pre>' : '');
+      return;
+    }
+
+    const results = data.results || [data];
+    let html = '';
+    for (const result of results) {
+      html += '<div style="margin-bottom:18px;">' + renderSingleBenchmark(result) + '</div>';
+    }
+    $benchmarkOut.innerHTML = html;
+  }
+
+  function setBenchmarkButtons(disabled) {
+    $bench10k.disabled = disabled;
+    $bench100k.disabled = disabled;
+    $bench1m.disabled = disabled;
+    $benchAll.disabled = disabled;
+  }
+
+  async function runBenchmark(size, all) {
+    const queries = Math.max(1, Math.min(100000, Number($benchQueries.value || 5000)));
+    let order = Math.max(4, Math.min(1024, Number($benchOrder.value || 4)));
+    if (order % 2 !== 0) order += 1;
+    setBenchmarkButtons(true);
+    setBenchStatus('running...');
+    $benchmarkOut.innerHTML = '<div style="color:var(--muted);">Running C benchmark...</div>';
+
+    try {
+      const res = await fetch('/benchmark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size, queries, order, all: !!all }),
+      });
+      const data = await res.json();
+      renderBenchmarkResult(data);
+      setBenchStatus(res.ok && !data.error ? 'done' : 'error', res.ok && !data.error ? 'ok' : 'err');
+    } catch (e) {
+      $benchmarkOut.innerHTML = '<div style="color:var(--error);">Request failed: ' + esc(e.message) + '</div>';
+      setBenchStatus('network error', 'err');
+    } finally {
+      setBenchmarkButtons(false);
+    }
+  }
+
   $run.addEventListener('click', runQuery);
+  $bench10k.addEventListener('click', function () { runBenchmark(10000, false); });
+  $bench100k.addEventListener('click', function () { runBenchmark(100000, false); });
+  $bench1m.addEventListener('click', function () { runBenchmark(1000000, false); });
+  $benchAll.addEventListener('click', function () { runBenchmark(100000, true); });
   $viewCards.addEventListener('click', function () { setView('cards'); });
   $viewJson.addEventListener('click',  function () { setView('json');  });
   $clear.addEventListener('click', () => {

@@ -1,4 +1,5 @@
 .claude/
+__pycache__/
 build/
 *.o
 *.exe
@@ -8,6 +9,10 @@ test_bptree
 test_structure
 test_search
 bench_search
+db_benchmark
+bench_bptree_scale
+bench_index_graph
+bench_sql_index
 sqlparser
 test_runner
 test_storage_insert
