@@ -162,6 +162,58 @@ static void test_insert_splits_leaf_and_inserts_into_parent(void)
     bptree_destroy(tree);
 }
 
+static void test_insert_splits_internal_root_when_parent_is_full(void)
+{
+    BPTree *tree = bptree_create();
+    static int values[10];
+    BPTreeNode *left_internal;
+    BPTreeNode *right_internal;
+    BPTreeNode *leaf;
+    int expected = 1;
+    int i;
+
+    assert(tree != NULL);
+
+    for (i = 0; i < 10; i++) {
+        values[i] = i + 1;
+        assert(bptree_insert(tree, values[i] * 10, &values[i]) == 0);
+    }
+
+    assert(tree->root->is_leaf == 0);
+    assert(tree->root->key_count == 1);
+    assert(tree->root->keys[0] == 70);
+
+    left_internal = tree->root->children[0];
+    right_internal = tree->root->children[1];
+    assert(left_internal != NULL);
+    assert(right_internal != NULL);
+    assert(left_internal->is_leaf == 0);
+    assert(right_internal->is_leaf == 0);
+
+    assert(left_internal->key_count == 2);
+    assert(left_internal->keys[0] == 30);
+    assert(left_internal->keys[1] == 50);
+
+    assert(right_internal->key_count == 1);
+    assert(right_internal->keys[0] == 90);
+
+    leaf = tree->first_leaf;
+    while (leaf != NULL) {
+        int j;
+
+        assert(leaf->is_leaf == 1);
+        for (j = 0; j < leaf->key_count; j++) {
+            assert(leaf->keys[j] == expected * 10);
+            assert(bptree_search(tree, expected * 10) == &values[expected - 1]);
+            expected++;
+        }
+        leaf = leaf->next;
+    }
+
+    assert(expected == 11);
+    bptree_destroy(tree);
+}
+
 static void run_test(const TestCase *test_case, int index, int total)
 {
     printf("[INSERT %d/%d] %s ... ", index, total, test_case->name);
@@ -178,6 +230,7 @@ int main(void)
         {"case-03: 같은 key 를 다시 넣으면 값을 갱신한다", test_insert_updates_duplicate_key_value},
         {"case-04: 루트 리프가 가득 차면 두 리프로 split 된다", test_insert_splits_root_leaf_when_full},
         {"case-05: 부모가 여유 있으면 리프 split 결과를 부모에 반영한다", test_insert_splits_leaf_and_inserts_into_parent},
+        {"case-06: 부모도 가득 차면 내부 노드를 split 한다", test_insert_splits_internal_root_when_parent_is_full},
     };
     int total = (int)(sizeof(tests) / sizeof(tests[0]));
     int i;

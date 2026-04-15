@@ -4,6 +4,10 @@
 
 #define BPTREE_MAX_KEYS (BPTREE_ORDER - 1)
 
+static int bptree_find_child_index(BPTreeNode *parent, BPTreeNode *child);
+static int bptree_insert_into_parent(BPTree *tree, BPTreeNode *left,
+                                     int promoted_key, BPTreeNode *right);
+
 /* 리프 노드 안에서 새 key 가 들어갈 자리를 찾는다.
  * 이미 같은 key 가 있으면 그 key 의 위치를 돌려준다.
  */
@@ -77,6 +81,109 @@ static void bptree_build_leaf_temp_arrays(BPTreeNode *leaf, int key, void *value
     }
 }
 
+/* 내부 노드에 key 하나와 새 오른쪽 child 하나를 끼워 넣을 때 사용할
+ * 임시 key 배열과 임시 child 배열을 만든다.
+ */
+static int bptree_build_internal_temp_arrays(BPTreeNode *parent, BPTreeNode *left,
+                                             int promoted_key, BPTreeNode *right,
+                                             int temp_keys[BPTREE_ORDER],
+                                             BPTreeNode *temp_children[BPTREE_ORDER + 1])
+{
+    int child_index;
+    int key_index;
+    int old_child_index;
+
+    child_index = bptree_find_child_index(parent, left);
+    if (child_index < 0) {
+        return -1;
+    }
+
+    for (old_child_index = 0; old_child_index <= parent->key_count; old_child_index++) {
+        if (old_child_index <= child_index) {
+            temp_children[old_child_index] = parent->children[old_child_index];
+        } else {
+            temp_children[old_child_index + 1] = parent->children[old_child_index];
+        }
+    }
+    temp_children[child_index + 1] = right;
+
+    for (key_index = 0; key_index < parent->key_count; key_index++) {
+        if (key_index < child_index) {
+            temp_keys[key_index] = parent->keys[key_index];
+        } else {
+            temp_keys[key_index + 1] = parent->keys[key_index];
+        }
+    }
+    temp_keys[child_index] = promoted_key;
+
+    return child_index;
+}
+
+/* 내부 노드가 가득 찬 상태에서 새 key 와 child 를 받아 둘로 나눈다.
+ * 가운데 key 하나는 더 위 부모로 올리고,
+ * 오른쪽 절반은 새 내부 노드로 보낸다.
+ */
+static int bptree_split_internal(BPTree *tree, BPTreeNode *parent, BPTreeNode *left,
+                                 int promoted_key, BPTreeNode *right)
+{
+    int temp_keys[BPTREE_ORDER];
+    BPTreeNode *temp_children[BPTREE_ORDER + 1];
+    BPTreeNode *new_internal;
+    int split_index = BPTREE_ORDER / 2;
+    int parent_key_to_promote;
+    int i;
+
+    if (!tree || !parent || parent->is_leaf) {
+        return -1;
+    }
+
+    if (bptree_build_internal_temp_arrays(parent, left, promoted_key, right,
+                                          temp_keys, temp_children) < 0) {
+        return -1;
+    }
+
+    new_internal = bptree_create_node(0);
+    if (!new_internal) {
+        return -1;
+    }
+
+    parent_key_to_promote = temp_keys[split_index];
+
+    parent->key_count = 0;
+    for (i = 0; i < BPTREE_ORDER; i++) {
+        parent->children[i] = NULL;
+    }
+
+    for (i = 0; i < split_index; i++) {
+        parent->keys[i] = temp_keys[i];
+        parent->children[i] = temp_children[i];
+        if (parent->children[i]) {
+            parent->children[i]->parent = parent;
+        }
+        parent->key_count++;
+    }
+    parent->children[split_index] = temp_children[split_index];
+    if (parent->children[split_index]) {
+        parent->children[split_index]->parent = parent;
+    }
+
+    for (i = split_index + 1; i < BPTREE_ORDER; i++) {
+        new_internal->keys[new_internal->key_count] = temp_keys[i];
+        new_internal->children[new_internal->key_count] = temp_children[i];
+        if (new_internal->children[new_internal->key_count]) {
+            new_internal->children[new_internal->key_count]->parent = new_internal;
+        }
+        new_internal->key_count++;
+    }
+    new_internal->children[new_internal->key_count] = temp_children[BPTREE_ORDER];
+    if (new_internal->children[new_internal->key_count]) {
+        new_internal->children[new_internal->key_count]->parent = new_internal;
+    }
+    new_internal->parent = parent->parent;
+
+    return bptree_insert_into_parent(tree, parent, parent_key_to_promote, new_internal);
+}
+
 /* 부모 노드 안에서 특정 child 가 몇 번째 자식인지 찾는다. */
 static int bptree_find_child_index(BPTreeNode *parent, BPTreeNode *child)
 {
@@ -96,7 +203,8 @@ static int bptree_find_child_index(BPTreeNode *parent, BPTreeNode *child)
 }
 
 /* split 후 오른쪽 child 가 새로 생겼을 때 부모에 key 와 child 를 반영한다.
- * 현재 단계에서는 부모가 꽉 차지 않은 경우까지만 지원한다.
+ * 부모에 자리가 있으면 바로 끼워 넣고,
+ * 부모도 가득 찼으면 내부 노드 split 으로 이어진다.
  */
 static int bptree_insert_into_parent(BPTree *tree, BPTreeNode *left,
                                      int promoted_key, BPTreeNode *right)
@@ -129,7 +237,7 @@ static int bptree_insert_into_parent(BPTree *tree, BPTreeNode *left,
     }
 
     if (parent->key_count >= BPTREE_MAX_KEYS) {
-        return -1;
+        return bptree_split_internal(tree, parent, left, promoted_key, right);
     }
 
     child_index = bptree_find_child_index(parent, left);
@@ -152,11 +260,9 @@ static int bptree_insert_into_parent(BPTree *tree, BPTreeNode *left,
     return 0;
 }
 
-/* 리프 split 의 첫 단계 구현.
- * 현재는:
- * 1. 루트가 리프일 때 split
- * 2. 부모가 여유 있는 리프 split
- * 까지 지원한다.
+/* 리프가 가득 찼을 때 둘로 나눈다.
+ * 오른쪽 리프의 첫 key 를 부모 쪽 경계값으로 올리고,
+ * 필요하면 부모 split 까지 연쇄적으로 이어진다.
  */
 static int bptree_split_leaf(BPTree *tree, BPTreeNode *leaf, int key, void *value)
 {
@@ -168,11 +274,6 @@ static int bptree_split_leaf(BPTree *tree, BPTreeNode *leaf, int key, void *valu
     int i;
 
     if (!tree || !leaf || !leaf->is_leaf) {
-        return -1;
-    }
-
-    if (leaf->parent != NULL && leaf->parent->key_count >= BPTREE_MAX_KEYS) {
-        /* 내부 노드 split 은 아직 다음 단계에서 구현한다. */
         return -1;
     }
 
@@ -335,11 +436,10 @@ void *bptree_search(BPTree *tree, int key)
 
 /* insert 의 현재 구현 범위.
  * 1. key 가 들어갈 리프를 찾는다.
- * 2. 리프에 자리가 있으면 정렬 순서를 유지하며 바로 넣는다.
- * 3. 리프가 꽉 찼으면 두 리프로 나눈다.
- * 4. 부모가 없으면 새 루트를 만들고,
- *    부모에 자리가 있으면 오른쪽 리프와 경계 key 를 부모에 반영한다.
- * 5. 내부 노드 split 은 아직 다음 단계에서 구현한다.
+ * 2. 같은 key 가 이미 있으면 값만 갱신한다.
+ * 3. 리프에 자리가 있으면 정렬 순서를 유지하며 넣는다.
+ * 4. 리프가 꽉 찼으면 split 하고,
+ *    부모도 꽉 찼다면 내부 노드 split 을 연쇄적으로 이어 간다.
  */
 int bptree_insert(BPTree *tree, int key, void *value)
 {
@@ -354,8 +454,8 @@ int bptree_insert(BPTree *tree, int key, void *value)
         return -1;
     }
 
-    if (leaf->key_count < BPTREE_MAX_KEYS) {
-        return bptree_insert_into_leaf(leaf, key, value);
+    if (bptree_insert_into_leaf(leaf, key, value) == 0) {
+        return 0;
     }
 
     return bptree_split_leaf(tree, leaf, key, value);

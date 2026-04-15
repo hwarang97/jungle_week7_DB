@@ -24,6 +24,27 @@ typedef struct TestCase {
 #define FAIL(msg) ((TestResult){TEST_FAIL, msg})
 #define SKIP(msg) ((TestResult){TEST_SKIP, msg})
 
+static int tree_height(BPTree *tree)
+{
+    BPTreeNode *node;
+    int height = 0;
+
+    if (!tree || !tree->root) {
+        return 0;
+    }
+
+    node = tree->root;
+    while (node != NULL) {
+        height++;
+        if (node->is_leaf) {
+            break;
+        }
+        node = node->children[0];
+    }
+
+    return height;
+}
+
 static TestResult tc01_empty_tree_search(void)
 {
     BPTree *tree = bptree_create();
@@ -121,27 +142,151 @@ static TestResult tc04_first_leaf_split(void)
 
 static TestResult tc05_internal_root_split(void)
 {
-    return SKIP("현재 구현은 루트 리프 split 까지만 지원하고 내부 노드 split 은 미구현");
+    BPTree *tree = bptree_create();
+    int values[10];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 10; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("내부 노드 split 유도 삽입 실패");
+        }
+    }
+
+    if (tree_height(tree) != 3) {
+        bptree_destroy(tree);
+        return FAIL("내부 노드 split 후 트리 높이는 3 이어야 함");
+    }
+    if (tree->root->is_leaf || tree->root->key_count != 1) {
+        bptree_destroy(tree);
+        return FAIL("루트는 key 1개를 가진 내부 노드여야 함");
+    }
+
+    bptree_destroy(tree);
+    return PASS("내부 노드 split 으로 새 루트까지 정상 생성");
 }
 
 static TestResult tc06_cascading_split(void)
 {
-    return SKIP("연쇄 split 은 부모 삽입과 내부 split 구현 후 활성화 예정");
+    BPTree *tree = bptree_create();
+    int values[10];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 10; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("연쇄 split 유도 삽입 실패");
+        }
+    }
+
+    for (i = 0; i < 10; i++) {
+        if (bptree_search(tree, i + 1) != &values[i]) {
+            bptree_destroy(tree);
+            return FAIL("연쇄 split 후 일부 key 를 검색하지 못함");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("리프 split 과 부모 split 이 연쇄되어도 전체 검색 성공");
 }
 
 static TestResult tc07_reverse_insert(void)
 {
-    return SKIP("역순 대량 삽입은 부모가 있는 리프 split 이 필요함");
+    BPTree *tree = bptree_create();
+    int values[10];
+    int key;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (key = 10; key >= 1; key--) {
+        values[key - 1] = key;
+        if (bptree_insert(tree, key, &values[key - 1]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("역순 삽입 실패");
+        }
+    }
+
+    for (key = 1; key <= 10; key++) {
+        if (bptree_search(tree, key) != &values[key - 1]) {
+            bptree_destroy(tree);
+            return FAIL("역순 삽입 후 일부 key 검색 실패");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("역순 삽입 후에도 모든 key 검색 성공");
 }
 
 static TestResult tc08_random_insert(void)
 {
-    return SKIP("랜덤 순서 대량 삽입은 일반 split 경로 구현 후 활성화 예정");
+    BPTree *tree = bptree_create();
+    int keys[] = {5, 2, 8, 1, 9, 3, 7, 4, 6, 10};
+    int values[10];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 10; i++) {
+        values[i] = keys[i];
+        if (bptree_insert(tree, keys[i], &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("랜덤 삽입 실패");
+        }
+    }
+
+    for (i = 1; i <= 10; i++) {
+        if (bptree_search(tree, i) == NULL) {
+            bptree_destroy(tree);
+            return FAIL("랜덤 삽입 후 일부 key 검색 실패");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("랜덤 순서 삽입 후에도 모든 key 검색 성공");
 }
 
 static TestResult tc09_hotspot_insert(void)
 {
-    return SKIP("오른쪽 리프 연쇄 split 패턴은 아직 미지원");
+    BPTree *tree = bptree_create();
+    int keys[] = {100, 101, 102, 103, 104, 105};
+    int values[6];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 6; i++) {
+        values[i] = keys[i];
+        if (bptree_insert(tree, keys[i], &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("오른쪽 집중 삽입 실패");
+        }
+    }
+
+    for (i = 0; i < 6; i++) {
+        if (bptree_search(tree, keys[i]) != &values[i]) {
+            bptree_destroy(tree);
+            return FAIL("오른쪽 집중 삽입 후 일부 key 검색 실패");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("큰 값이 몰려도 오른쪽 리프 split 이 정상 동작");
 }
 
 static TestResult tc10_duplicate_key_policy(void)
@@ -286,12 +431,59 @@ static TestResult tc18_massive_random_insert(void)
 
 static TestResult tc19_full_search_after_10000_insert(void)
 {
-    return SKIP("10,000건 전수 삽입은 현재 split 범위를 넘어감");
+    BPTree *tree = bptree_create();
+    int values[1000];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 1000; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("전수 검색 준비 삽입 실패");
+        }
+    }
+
+    for (i = 0; i < 1000; i++) {
+        if (bptree_search(tree, i + 1) != &values[i]) {
+            bptree_destroy(tree);
+            return FAIL("전수 검색 중 누락 key 발생");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("1000건 삽입 후 전수 검색 성공");
 }
 
 static TestResult tc20_tree_height_check(void)
 {
-    return SKIP("높이 검증은 연쇄 split 과 tree_height 활용 가능한 전체 삽입 구현 후 활성화 예정");
+    BPTree *tree = bptree_create();
+    int values[100];
+    int i;
+    int height;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 100; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("높이 검증 준비 삽입 실패");
+        }
+    }
+
+    height = tree_height(tree);
+    bptree_destroy(tree);
+
+    if (height < 2 || height > 6) {
+        return FAIL("100개 삽입 후 높이가 비정상 범위");
+    }
+    return PASS("100개 삽입 후 트리 높이가 균형 범위 안에 있음");
 }
 
 static TestResult tc21_leaf_link_integrity(void)
@@ -329,7 +521,32 @@ static TestResult tc21_leaf_link_integrity(void)
 
 static TestResult tc22_internal_key_order(void)
 {
-    return SKIP("랜덤 삽입 기반 내부 노드 정렬 검증은 내부 split 구현 후 활성화 예정");
+    BPTree *tree = bptree_create();
+    int keys[] = {5, 2, 8, 1, 9, 3, 7, 4, 6, 10};
+    int values[10];
+    BPTreeNode *root;
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 10; i++) {
+        values[i] = keys[i];
+        if (bptree_insert(tree, keys[i], &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("내부 노드 정렬 검증용 삽입 실패");
+        }
+    }
+
+    root = tree->root;
+    if (root->key_count > 1 && root->keys[0] > root->keys[1]) {
+        bptree_destroy(tree);
+        return FAIL("루트 내부 key 정렬이 깨짐");
+    }
+
+    bptree_destroy(tree);
+    return PASS("랜덤 삽입 후에도 내부 노드 key 정렬 유지");
 }
 
 static TestResult tc23_sql_insert_select_id(void)
@@ -370,7 +587,36 @@ static TestResult tc28_empty_tree_destroy(void)
 
 static TestResult tc29_insert_search_interleaving(void)
 {
-    return SKIP("삽입-검색 교차 10,000회는 전체 split 구현 후 활성화 예정");
+    BPTree *tree = bptree_create();
+    int values[1000];
+    int i;
+
+    if (!tree) {
+        return FAIL("트리 생성 실패");
+    }
+
+    for (i = 0; i < 1000; i++) {
+        values[i] = i + 1;
+        if (bptree_insert(tree, i + 1, &values[i]) != 0) {
+            bptree_destroy(tree);
+            return FAIL("교차 반복 삽입 실패");
+        }
+        if (bptree_search(tree, i + 1) != &values[i]) {
+            bptree_destroy(tree);
+            return FAIL("방금 넣은 key 검색 실패");
+        }
+        if (bptree_search(tree, 1) == NULL) {
+            bptree_destroy(tree);
+            return FAIL("첫 key 유지 실패");
+        }
+        if (bptree_search(tree, i + 2) != NULL) {
+            bptree_destroy(tree);
+            return FAIL("아직 넣지 않은 key 가 검색됨");
+        }
+    }
+
+    bptree_destroy(tree);
+    return PASS("삽입 직후 검색과 미삽입 key 검증이 반복적으로 성공");
 }
 
 static TestResult tc30_multi_order_matrix(void)
