@@ -10,7 +10,8 @@ BPTREE_TARGET = bptree
 STRUCTURE_TEST_TARGET = test_structure
 INSERT_TEST_TARGET = test_insert
 SEARCH_TEST_TARGET = test_search
-TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(INSERT_TEST_TARGET) $(SEARCH_TEST_TARGET)
+EDGE_TEST_TARGET = test_edge_cases
+TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(INSERT_TEST_TARGET) $(SEARCH_TEST_TARGET) $(EDGE_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
 
 SQL_SRCS = $(SRC_DIR)/main.c \
@@ -50,10 +51,14 @@ $(INSERT_TEST_TARGET): test/test_insert.c $(SRC_DIR)/bptree.c
 $(SEARCH_TEST_TARGET): test/test_search.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(EDGE_TEST_TARGET): test/test_edge_cases.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
 test: $(TEST_TARGETS)
 	./$(STRUCTURE_TEST_TARGET)
 	./$(INSERT_TEST_TARGET)
 	./$(SEARCH_TEST_TARGET)
+	./$(EDGE_TEST_TARGET)
 
 $(BPTREE_BENCH_TARGET): $(BENCH_DIR)/bench_search.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
