@@ -7,8 +7,18 @@
 #include "../src/bptree.h"
 
 #define BENCH_TABLE "bench_users"
-#define ID_LOOKUPS 1000
-#define NAME_LOOKUPS 1000
+
+#ifndef ID_LOOKUPS
+#define ID_LOOKUPS 20
+#endif
+
+#ifndef NAME_LOOKUPS
+#define NAME_LOOKUPS 20
+#endif
+
+#ifndef SQL_BENCH_ROW_COUNTS
+#define SQL_BENCH_ROW_COUNTS 20, 80, 160
+#endif
 
 static const char *ansi_reset(void)
 {
@@ -236,7 +246,7 @@ static void run_case(int row_count)
 
 int main(void)
 {
-    int row_counts[] = {100, 1000, 5000};
+    int row_counts[] = {SQL_BENCH_ROW_COUNTS};
     int i;
 
     printf("%s%s[bench-sql-index]%s current_bptree_order=%s%d%s\n",
@@ -251,7 +261,7 @@ int main(void)
         run_case(row_counts[i]);
     }
 
-    printf("\n%s%s[hint]%s compare another order with %smake bench-sql-index CFLAGS=\"... -DBPTREE_ORDER=32\"%s\n",
+    printf("\n%s%s[hint]%s increase samples with %smake bench-sql-index CFLAGS=\"... -DID_LOOKUPS=1000 -DNAME_LOOKUPS=1000\"%s\n",
            ansi_bold(), ansi_cyan(), ansi_reset(),
            ansi_bold(), ansi_reset());
     return 0;

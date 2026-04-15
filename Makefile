@@ -61,7 +61,7 @@ RUN_SQL_TEST_TARGET = ./$(SQL_TEST_TARGET)$(EXEEXT)
 RUN_CURRENT_TARGET = ./$@$(EXEEXT)
 endif
 
-.PHONY: all clean test bench sqlparser test-sqlparser valgrind test_storage_all run json
+.PHONY: all clean test bench bench-bptree-scale bench-sql-index test-sqlparser valgrind test_storage_all run json
 
 all: $(BPTREE_TARGET)
 
@@ -95,8 +95,6 @@ $(SQL_BENCH_TARGET): $(BENCH_DIR)/bench_sql_index.c $(SRC_DIR)/storage.c $(SRC_D
 
 bench-sql-index: $(SQL_BENCH_TARGET)
 	$(RUN_SQL_BENCH_TARGET)
-
-sqlparser: $(SQL_TARGET)
 
 $(SQL_TARGET): $(SQL_SRCS)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -134,7 +132,7 @@ valgrind: $(SQL_TARGET)
 	valgrind --leak-check=full --error-exitcode=1 $(RUN_SQL_TARGET) $(SQL)
 
 clean:
-	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET)
+	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET) $(BPTREE_SCALE_BENCH_TARGET) $(SQL_BENCH_TARGET)
 	rm -f $(SQL_TARGET) $(SQL_TEST_TARGET) $(STORAGE_TEST_TARGETS)
 	rm -f data/*.csv data/*.schema
 	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp
