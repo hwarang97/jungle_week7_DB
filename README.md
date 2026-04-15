@@ -2,16 +2,7 @@
 
 메모리 기반 B+ Tree 인덱스를 C로 구현하고, SQL 처리기와 연동하여 대용량 데이터 검색 성능을 비교하는 프로젝트입니다.
 
-## 1. 팀원
-
-| 이름 | 주요 기여 |
-|---|---|
-| jiun | SQL `WHERE id = ?` 인덱스 연동, 비인덱스 fallback 유지, 데모 스크립트·benchmark·검증 문서까지 정리해 최종 완성도를 높였습니다. |
-| minsuk | SQL INSERT와 auto-id, `SELECT WHERE id` fast path를 안정적으로 연결하고 통합 테스트로 동작을 검증했습니다. |
-| seokje | B+ Tree insert/split/search를 단계적으로 구현하고, SQL 조회에서 id 인덱스 경로와 선형 fallback을 비교 가능한 형태로 정리했습니다. |
-| sein | 단순한 인덱스 캐시 기반으로 SQL id 조회 연동 방향을 실험해 팀 비교와 구조 논의에 기여했습니다. |
-
-## 2. 빌드 및 실행 방법
+## 1. 빌드 및 실행 방법
 
 ```bash
 make
@@ -41,7 +32,7 @@ python3 server.py
 현재 B+ Tree 차수는 `BPTREE_ORDER = 4`로 설정되어 있습니다.
 기본 benchmark는 빠른 데모를 위해 작은 row count와 sample 수를 사용하며, 필요하면 compile-time macro로 범위를 확장할 수 있습니다.
 
-## 3. B+ Tree 구조 설명
+## 2. B+ Tree 구조 설명
 
 ### 3.1 트리 구조
 
@@ -56,19 +47,17 @@ python3 server.py
 
 ![B+ Tree insert and split](docs/bptree-insert-split.svg)
 
-### 3.3 의사코드
+### 2.3 Search 흐름
 
 ![B+ Tree search flow](docs/bptree-search.svg)
 
 - `SEARCH`: root에서 시작해 separator key를 비교하며 leaf까지 내려간 뒤, leaf에서 key를 찾으면 value를 반환합니다.
-- `INSERT`: key가 들어갈 leaf를 찾고 정렬 상태를 유지하며 삽입합니다.
-- `SPLIT`: overflow가 발생하면 leaf 또는 internal node를 둘로 나누고, separator key를 부모에 반영합니다.
 
-## 4. 시스템 구조 (SQL 연동)
+## 3. 시스템 구조 (SQL 연동)
 
 ![B+ Tree system architecture](docs/bptree-system-architecture.svg)
 
-### 4.1 흐름 요약
+### 3.1 흐름 요약
 
 - `INSERT` 실행 시 레코드를 저장한 뒤, 부여된 `id` 를 B+ Tree 인덱스에 등록합니다.
 - `id` 컬럼을 생략한 `INSERT` 는 auto-id를 생성한 뒤 해당 값을 인덱스 key로 사용합니다.
@@ -81,7 +70,7 @@ python3 server.py
 
 ![Index vs linear comparison](docs/bptree-index-vs-linear.svg)
 
-## 4.2 왜 `id` + B+ Tree를 선택했는가
+## 3.2 왜 `id` + B+ Tree를 선택했는가
 
 `SELECT WHERE id = ?` 는 이번 과제에서 가장 중요한 조회 패턴입니다.  
 `id` 는 row를 잘 구분하는 key이고, B+ Tree는 equality 조회뿐 아니라 정렬된 구조와 리프 연결을 바탕으로 범위 탐색까지 확장하기 좋은 형태입니다.
@@ -93,7 +82,7 @@ python3 server.py
 | 자료구조 | B+ Tree |
 | 비교 전략 | `id` 는 B+ Tree 인덱스, `name` 은 선형 탐색으로 두어 benchmark 차이를 명확히 보이도록 했습니다. |
 
-## 4.3 실무 관점과 트레이드오프
+## 3.3 실무 관점과 트레이드오프
 
 | 기준 | 의미 | 이번 프로젝트 적용 |
 |---|---|---|
@@ -110,7 +99,7 @@ python3 server.py
 | 유지 비용 | 인덱스를 유지하기 위한 메모리와 관리 비용이 필요합니다. |
 | 비효율 사례 | 선택도가 낮은 컬럼에는 인덱스 효과가 작을 수 있습니다. |
 
-## 5. 벤치마크 결과
+## 4. 벤치마크 결과
 
 현재 `main`의 기본 `make bench-sql-index` 실행 결과를 기준으로 정리했습니다.
 
@@ -122,7 +111,7 @@ python3 server.py
 
 ![SQL benchmark graph](docs/benchmark-sql-index.svg)
 
-### 5.1 요약
+### 4.1 요약
 
 - `WHERE id = ?` 는 B+ Tree 인덱스를 사용해 일정한 시간 안에 조회됩니다.
 - `WHERE name = ?` 는 선형 탐색이므로 같은 조건에서도 인덱스 조회보다 느리게 측정됩니다.
@@ -133,7 +122,7 @@ python3 server.py
 \* 기본 SQL benchmark는 `ID_LOOKUPS=20`, `NAME_LOOKUPS=20`, `SQL_BENCH_ROW_COUNTS=20, 80, 160` 설정을 사용합니다.  
 \* fixture는 `storage_insert()`를 사용해 row를 채우고, 이후 `WHERE id = ?` 와 `WHERE name = ?` 조회를 반복 측정합니다.
 
-### 5.2 벤치마크 실행 예시
+### 4.2 벤치마크 실행 예시
 
 ```bash
 make bench-sql-index
@@ -142,7 +131,7 @@ make bench-bptree-scale
 
 더 큰 benchmark가 필요하면 `benchmark/bench_sql_index.c`와 `benchmark/bench_bptree_scale.c`의 compile-time macro를 조정해 row 수와 sample 수를 확장할 수 있습니다.
 
-### 5.3 B+ Tree 자체 확장성 확인
+### 4.3 B+ Tree 자체 확장성 확인
 
 현재 `main`의 기본 `make bench-bptree-scale` 실행 결과는 아래와 같습니다.
 
@@ -154,15 +143,15 @@ make bench-bptree-scale
 
 ![B+ Tree scale benchmark graph](docs/benchmark-bptree-scale.svg)
 
-### 5.4 벤치마크 해석
+### 4.4 벤치마크 해석
 
 - `bptree search`는 row 수가 커져도 매우 낮은 시간으로 유지됩니다.
 - `linear search`는 row 수 증가에 따라 더 가파르게 증가합니다.
 - `bptree insert`는 row 저장과 트리 갱신이 함께 일어나므로 search보다 비용이 크지만, 현재 기본 benchmark 범위에서는 완만하게 증가합니다.
 
-## 6. 테스트 결과
+## 5. 테스트 결과
 
-### 6.1 통과한 테스트 종류
+### 5.1 통과한 테스트 종류
 
 - B+ Tree 구조 테스트
 - search 테스트
@@ -172,7 +161,7 @@ make bench-bptree-scale
 - auto-id 생성 및 증가 테스트
 - `WHERE id = ?` fast path / 비인덱스 fallback 테스트
 
-### 6.2 실행 결과 예시
+### 5.2 실행 결과 예시
 
 ```text
 Structure tests passed! (6/6)
@@ -186,7 +175,7 @@ All UPDATE storage tests passed.
 [SQL INDEX INTEGRATION] passed
 ```
 
-### 6.3 추가 검증 명령
+### 5.3 추가 검증 명령
 
 ```bash
 make test
@@ -194,7 +183,7 @@ make test-sqlparser
 make test_sql_index_integration
 ```
 
-### 6.4 테스트 요약
+### 5.4 테스트 요약
 
 - B+ Tree 구조 테스트: `6/6 PASS`
 - B+ Tree search 테스트: `11/11 PASS`
@@ -204,7 +193,7 @@ make test_sql_index_integration
 - auto-id 생략 `INSERT` 테스트: `passed`
 - auto-id 연속 증가 테스트: `passed`
 
-## 7. 프로젝트 구조
+## 6. 프로젝트 구조
 
 ```text
 jungle_week7_DB/
@@ -246,7 +235,7 @@ jungle_week7_DB/
 └── README.md
 ```
 
-### 7.1 주요 파일 역할
+### 6.1 주요 파일 역할
 
 - `src/bptree.h`: B+ Tree 구조체와 함수 선언을 담고 있습니다.
 - `src/bptree.c`: search, insert, split의 핵심 구현을 담고 있습니다.
@@ -262,7 +251,7 @@ jungle_week7_DB/
 - `server.py`: 브라우저 요청을 받아 `sqlparser`와 benchmark 타깃을 실행하는 로컬 HTTP 서버입니다.
 - `docs/bptree-search-simulator.html`: B+ Tree 탐색 흐름을 시각적으로 확인하는 보조 자료입니다.
 
-## 8. 향후 확장 방향
+## 7. 향후 확장 방향
 
 - 범위 검색, delete, 다중 인덱스 지원으로 확장할 수 있습니다.
 - 메모리 기반 구조를 디스크 페이지 기반 구조로 확장하면 실제 DBMS에 더 가까운 형태로 발전시킬 수 있습니다.
