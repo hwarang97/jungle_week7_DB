@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B+ Tree Search Simulator</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffaf2;
+      --panel-strong: #f7e7c6;
+      --ink: #1e1a16;
+      --muted: #65584d;
+      --line: #cdb89a;
+      --accent: #0f766e;
+      --accent-soft: #d9f3ef;
+      --warn: #b45309;
+      --hit: #166534;
+      --miss: #991b1b;
+      --shadow: 0 18px 35px rgba(68, 52, 36, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(180, 83, 9, 0.12), transparent 22%),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(255, 250, 242, 0.96), rgba(247, 231, 198, 0.92));
+      border: 1px solid rgba(205, 184, 154, 0.7);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(205, 184, 154, 0.75);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .panel p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .tree-stage {
+      padding: 16px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #fffdf8, #f7f0e4);
+      border: 1px solid rgba(205, 184, 154, 0.75);
+      min-height: 430px;
+    }
+
+    .tree-row {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 34px;
+      position: relative;
+      flex-wrap: wrap;
+    }
+
+    .tree-row.leaves {
+      margin-bottom: 0;
+      padding-top: 24px;
+    }
+
+    .node {
+      width: min(250px, 100%);
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      position: relative;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .node.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+      transform: translateY(-4px);
+    }
+
+    .node.hit {
+      border-color: var(--hit);
+      box-shadow: 0 0 0 4px rgba(22, 101, 52, 0.14);
+    }
+
+    .node.miss {
+      border-color: var(--miss);
+      box-shadow: 0 0 0 4px rgba(153, 27, 27, 0.1);
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .node-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .node-type {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      color: #72531b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .keys {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .key-box {
+      min-width: 52px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f7f1e5;
+      border: 1px solid rgba(205, 184, 154, 0.9);
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .key-box.target {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: #0b4f49;
+    }
+
+    .pointers {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pointer-line strong {
+      color: var(--ink);
+    }
+
+    .leaf-link {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #7c5d22;
+      font-weight: 600;
+    }
+
+    .connector-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: -16px;
+      margin-bottom: 18px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .input-row input {
+      flex: 1 1 180px;
+      min-width: 0;
+      border: 1px solid rgba(205, 184, 154, 0.95);
+      border-radius: 14px;
+      background: #fff;
+      padding: 13px 14px;
+      font-size: 16px;
+    }
+
+    .input-row button,
+    .preset-list button {
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+    }
+
+    .input-row button {
+      min-width: 120px;
+      background: var(--accent);
+      color: white;
+      padding: 13px 16px;
+    }
+
+    .input-row button:hover,
+    .preset-list button:hover {
+      transform: translateY(-1px);
+    }
+
+    .preset-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-list button {
+      background: #efe4d0;
+      color: #604629;
+      padding: 10px 12px;
+    }
+
+    .status-box {
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 18px;
+      background: #fff;
+      border: 1px solid rgba(205, 184, 154, 0.85);
+    }
+
+    .status-label {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .status-text {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .status-text.hit {
+      color: var(--hit);
+    }
+
+    .status-text.miss {
+      color: var(--miss);
+    }
+
+    .step-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .step-item {
+      padding: 14px 14px 14px 16px;
+      background: #fff;
+      border: 1px solid rgba(205, 184, 154, 0.75);
+      border-radius: 16px;
+      line-height: 1.55;
+    }
+
+    .step-item.current {
+      border-color: var(--accent);
+      background: #f1faf8;
+    }
+
+    .step-item strong {
+      display: inline-block;
+      min-width: 62px;
+      color: var(--accent);
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(205, 184, 154, 0.75);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid var(--line);
+      background: #fff;
+    }
+
+    .swatch.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .swatch.hit {
+      border-color: var(--hit);
+      background: rgba(22, 101, 52, 0.18);
+    }
+
+    .swatch.miss {
+      border-color: var(--miss);
+      background: rgba(153, 27, 27, 0.14);
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    @media (max-width: 940px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>B+ Tree Search Simulator</h1>
+      <p>
+        현재 `jiun` 브랜치의 구조체와 `search` 동작을 사람 눈으로 확인하기 위한 설명용 시뮬레이터입니다.
+        루트에서 시작해서 어떤 자식으로 내려가는지, 리프에서 어떤 key 와 비교하는지를 단계별로 보여줍니다.
+      </p>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>현재 테스트에 쓰는 예시 트리</h2>
+        <p>
+          현재 코드의 `search`는 내부 노드의 key 구간을 보고 자식으로 내려간 뒤,
+          리프 노드 안에서 key 를 다시 비교하는 방식입니다.
+        </p>
+
+        <div class="tree-stage">
+          <div class="tree-row">
+            <article class="node" id="root-node">
+              <div class="node-header">
+                <span class="node-title">root</span>
+                <span class="node-type">내부 노드</span>
+              </div>
+              <div class="keys" id="root-keys"></div>
+              <div class="pointers">
+                <div class="pointer-line"><strong>child[0]</strong> left leaf</div>
+                <div class="pointer-line"><strong>child[1]</strong> middle leaf</div>
+                <div class="pointer-line"><strong>child[2]</strong> right leaf</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="connector-note">root 의 key 구간을 보고 어느 리프로 내려갈지 결정합니다.</div>
+
+          <div class="tree-row leaves">
+            <article class="node" id="left-node">
+              <div class="node-header">
+                <span class="node-title">left leaf</span>
+                <span class="node-type">리프 노드</span>
+              </div>
+              <div class="keys" id="left-keys"></div>
+              <div class="pointers" id="left-values"></div>
+              <div class="leaf-link">next → middle leaf</div>
+            </article>
+
+            <article class="node" id="middle-node">
+              <div class="node-header">
+                <span class="node-title">middle leaf</span>
+                <span class="node-type">리프 노드</span>
+              </div>
+              <div class="keys" id="middle-keys"></div>
+              <div class="pointers" id="middle-values"></div>
+              <div class="leaf-link">next → right leaf</div>
+            </article>
+
+            <article class="node" id="right-node">
+              <div class="node-header">
+                <span class="node-title">right leaf</span>
+                <span class="node-type">리프 노드</span>
+              </div>
+              <div class="keys" id="right-keys"></div>
+              <div class="pointers" id="right-values"></div>
+              <div class="leaf-link">next → NULL</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>탐색 실험</h2>
+        <p>
+          key 를 넣고 `search` 버튼을 누르면, 현재 구현이 어떤 비교를 하고 어디로 내려가는지
+          단계별로 보여줍니다.
+        </p>
+
+        <div class="controls">
+          <div class="input-row">
+            <input id="search-input" type="number" value="40" placeholder="찾을 key 를 입력하세요">
+            <button id="search-button" type="button">search 실행</button>
+          </div>
+          <div class="preset-list">
+            <button type="button" data-key="10">10 찾기</button>
+            <button type="button" data-key="25">25 찾기</button>
+            <button type="button" data-key="40">40 찾기</button>
+            <button type="button" data-key="50">50 찾기</button>
+            <button type="button" data-key="70">70 찾기</button>
+          </div>
+        </div>
+
+        <div class="status-box">
+          <div class="status-label">결론</div>
+          <div class="status-text" id="status-text">아직 탐색을 실행하지 않았습니다.</div>
+        </div>
+
+        <div class="step-list" id="step-list"></div>
+
+        <div class="legend">
+          <div class="legend-item"><span class="swatch active"></span> 현재 보고 있는 노드</div>
+          <div class="legend-item"><span class="swatch hit"></span> key 를 찾은 노드</div>
+          <div class="legend-item"><span class="swatch miss"></span> 내려갔지만 찾지 못한 리프</div>
+        </div>
+
+        <p class="footer-note">
+          이 화면은 현재 코드의 `bptree_search()` 동작을 설명하기 위한 인간용 도구입니다.
+          실제 트리를 동적으로 수정하는 기능은 없고, 현재 테스트에 사용한 예시 트리를 그대로 보여줍니다.
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const tree = {
+      root: {
+        keys: [30, 50]
+      },
+      leaves: [
+        {
+          id: "left-node",
+          name: "left leaf",
+          keys: [10, 20],
+          values: [10, 20]
+        },
+        {
+          id: "middle-node",
+          name: "middle leaf",
+          keys: [30, 40],
+          values: [30, 40]
+        },
+        {
+          id: "right-node",
+          name: "right leaf",
+          keys: [50, 60],
+          values: [50, 60]
+        }
+      ]
+    };
+
+    function renderKeyBoxes(containerId, keys) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      keys.forEach((key) => {
+        const box = document.createElement("div");
+        box.className = "key-box";
+        box.textContent = key;
+        container.appendChild(box);
+      });
+    }
+
+    function renderValueLines(containerId, keys, values) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      keys.forEach((key, index) => {
+        const line = document.createElement("div");
+        line.className = "pointer-line";
+        line.innerHTML = `<strong>key ${key}</strong> → value ${values[index]}`;
+        container.appendChild(line);
+      });
+    }
+
+    function renderTree() {
+      renderKeyBoxes("root-keys", tree.root.keys);
+      renderKeyBoxes("left-keys", tree.leaves[0].keys);
+      renderKeyBoxes("middle-keys", tree.leaves[1].keys);
+      renderKeyBoxes("right-keys", tree.leaves[2].keys);
+
+      renderValueLines("left-values", tree.leaves[0].keys, tree.leaves[0].values);
+      renderValueLines("middle-values", tree.leaves[1].keys, tree.leaves[1].values);
+      renderValueLines("right-values", tree.leaves[2].keys, tree.leaves[2].values);
+    }
+
+    function clearHighlights() {
+      ["root-node", "left-node", "middle-node", "right-node"].forEach((id) => {
+        const el = document.getElementById(id);
+        el.classList.remove("active", "hit", "miss");
+      });
+    }
+
+    function chooseLeaf(key) {
+      if (key < tree.root.keys[0]) {
+        return { leafIndex: 0, reason: `${key} < 30 이므로 child[0] 으로 내려갑니다.` };
+      }
+
+      if (key < tree.root.keys[1]) {
+        return { leafIndex: 1, reason: `30 <= ${key} < 50 이므로 child[1] 으로 내려갑니다.` };
+      }
+
+      return { leafIndex: 2, reason: `${key} >= 50 이므로 child[2] 으로 내려갑니다.` };
+    }
+
+    function buildSteps(key) {
+      const steps = [];
+      const choice = chooseLeaf(key);
+      const leaf = tree.leaves[choice.leafIndex];
+      const keyIndex = leaf.keys.indexOf(key);
+
+      steps.push({
+        label: "1단계",
+        text: `root 에서 탐색을 시작합니다. root 의 key 는 [${tree.root.keys.join(", ")}] 입니다.`,
+        nodeId: "root-node"
+      });
+
+      steps.push({
+        label: "2단계",
+        text: choice.reason,
+        nodeId: "root-node"
+      });
+
+      steps.push({
+        label: "3단계",
+        text: `${leaf.name} 에 도착했습니다. 이 리프의 key 는 [${leaf.keys.join(", ")}] 입니다.`,
+        nodeId: leaf.id
+      });
+
+      if (keyIndex >= 0) {
+        steps.push({
+          label: "4단계",
+          text: `리프 안에서 key ${key} 를 찾았습니다. 반환 값은 value ${leaf.values[keyIndex]} 입니다.`,
+          nodeId: leaf.id,
+          result: "hit"
+        });
+      } else {
+        steps.push({
+          label: "4단계",
+          text: `리프 안의 key 를 끝까지 비교했지만 ${key} 는 없습니다. search 결과는 NULL 입니다.`,
+          nodeId: leaf.id,
+          result: "miss"
+        });
+      }
+
+      return {
+        steps,
+        hit: keyIndex >= 0,
+        leafId: leaf.id,
+        value: keyIndex >= 0 ? leaf.values[keyIndex] : null
+      };
+    }
+
+    function renderSteps(result) {
+      const stepList = document.getElementById("step-list");
+      const statusText = document.getElementById("status-text");
+
+      stepList.innerHTML = "";
+      clearHighlights();
+
+      result.steps.forEach((step, index) => {
+        const item = document.createElement("div");
+        item.className = "step-item";
+        if (index === result.steps.length - 1) {
+          item.classList.add("current");
+        }
+
+        item.innerHTML = `<strong>${step.label}</strong> ${step.text}`;
+        stepList.appendChild(item);
+
+        const node = document.getElementById(step.nodeId);
+        if (node) {
+          node.classList.add("active");
+        }
+      });
+
+      const resultNode = document.getElementById(result.leafId);
+      if (resultNode) {
+        resultNode.classList.remove("active");
+        resultNode.classList.add(result.hit ? "hit" : "miss");
+      }
+
+      const rootNode = document.getElementById("root-node");
+      if (rootNode && result.leafId !== "root-node") {
+        rootNode.classList.add("active");
+      }
+
+      if (result.hit) {
+        statusText.className = "status-text hit";
+        statusText.textContent = `key 를 찾았습니다. search 결과는 value ${result.value} 입니다.`;
+      } else {
+        statusText.className = "status-text miss";
+        statusText.textContent = "key 를 찾지 못했습니다. search 결과는 NULL 입니다.";
+      }
+    }
+
+    function runSearch() {
+      const input = document.getElementById("search-input");
+      const key = Number(input.value);
+
+      if (Number.isNaN(key)) {
+        return;
+      }
+
+      renderSteps(buildSteps(key));
+    }
+
+    renderTree();
+    document.getElementById("search-button").addEventListener("click", runSearch);
+    document.getElementById("search-input").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        runSearch();
+      }
+    });
+
+    document.querySelectorAll(".preset-list button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.getElementById("search-input").value = button.dataset.key;
+        runSearch();
+      });
+    });
+
+    runSearch();
+  </script>
+</body>
+</html>

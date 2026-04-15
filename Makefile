@@ -2,7 +2,9 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -I./src -I./include
 
 TARGET = bptree
-TEST_TARGET = test_bptree
+STRUCTURE_TEST_TARGET = test_structure
+SEARCH_TEST_TARGET = test_search
+TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET)
 BENCH_TARGET = bench_search
 
 SQL_SRCS = src/parser.c \
@@ -22,11 +24,15 @@ all: $(TARGET)
 $(TARGET): $(BPTREE_SRCS) $(SQL_SRCS)
 	$(CC) $(CFLAGS) -o $@ $(BPTREE_SRCS) $(SQL_SRCS)
 
-$(TEST_TARGET): test/test_bptree.c src/bptree.c
-	$(CC) $(CFLAGS) -o $@ test/test_bptree.c src/bptree.c
+$(STRUCTURE_TEST_TARGET): test/test_structure.c src/bptree.c
+	$(CC) $(CFLAGS) -o $@ test/test_structure.c src/bptree.c
 
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
+$(SEARCH_TEST_TARGET): test/test_search.c src/bptree.c
+	$(CC) $(CFLAGS) -o $@ test/test_search.c src/bptree.c
+
+test: $(TEST_TARGETS)
+	./$(STRUCTURE_TEST_TARGET)
+	./$(SEARCH_TEST_TARGET)
 
 $(BENCH_TARGET): benchmark/bench_search.c src/bptree.c
 	$(CC) $(CFLAGS) -o $@ benchmark/bench_search.c src/bptree.c
@@ -35,4 +41,4 @@ bench: $(BENCH_TARGET)
 	./$(BENCH_TARGET)
 
 clean:
-	rm -f $(TARGET) $(TEST_TARGET) $(BENCH_TARGET)
+	rm -f $(TARGET) $(TEST_TARGETS) $(BENCH_TARGET)
