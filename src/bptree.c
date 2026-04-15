@@ -2,6 +2,56 @@
 
 #include <stdlib.h>
 
+/* 리프 노드 안에서 새 key 가 들어갈 자리를 찾는다.
+ * 이미 같은 key 가 있으면 그 key 의 위치를 돌려준다.
+ */
+static int bptree_find_insert_position(BPTreeNode *leaf, int key)
+{
+    int index = 0;
+
+    while (index < leaf->key_count && leaf->keys[index] < key) {
+        index++;
+    }
+
+    return index;
+}
+
+/* 리프 노드 안에 key 와 value 를 정렬 순서를 유지하며 넣는다.
+ * 현재 단계에서는 split 을 아직 하지 않으므로,
+ * 자리가 없으면 -1 을 돌려준다.
+ */
+static int bptree_insert_into_leaf(BPTreeNode *leaf, int key, void *value)
+{
+    int index;
+    int move;
+
+    if (!leaf || !leaf->is_leaf) {
+        return -1;
+    }
+
+    index = bptree_find_insert_position(leaf, key);
+
+    /* 같은 key 가 이미 있으면 값을 새 값으로 바꾼다. */
+    if (index < leaf->key_count && leaf->keys[index] == key) {
+        leaf->values[index] = value;
+        return 0;
+    }
+
+    if (leaf->key_count >= BPTREE_ORDER - 1) {
+        return -1;
+    }
+
+    for (move = leaf->key_count; move > index; move--) {
+        leaf->keys[move] = leaf->keys[move - 1];
+        leaf->values[move] = leaf->values[move - 1];
+    }
+
+    leaf->keys[index] = key;
+    leaf->values[index] = value;
+    leaf->key_count++;
+    return 0;
+}
+
 /* search 는 항상 루트에서 시작해서
  * "이 key 가 어느 구간에 속하는지" 를 보며 아래로 내려간다.
  * 이 함수는 마지막에 도착한 리프 노드를 찾아준다.
@@ -125,12 +175,23 @@ void *bptree_search(BPTree *tree, int key)
 }
 
 /* insert 는 다음 사이클에서 구현한다.
- * 지금은 아직 동작하지 않는다는 뜻으로 -1 을 돌려준다.
+ * 현재 단계에서는:
+ * 1. key 가 들어갈 리프를 찾고
+ * 2. 리프가 꽉 차지 않았으면 정렬 순서를 유지하며 삽입한다.
+ * split 은 아직 다음 단계에서 구현한다.
  */
 int bptree_insert(BPTree *tree, int key, void *value)
 {
-    (void)tree;
-    (void)key;
-    (void)value;
-    return -1;
+    BPTreeNode *leaf;
+
+    if (!tree || !tree->root) {
+        return -1;
+    }
+
+    leaf = bptree_find_leaf(tree, key);
+    if (!leaf) {
+        return -1;
+    }
+
+    return bptree_insert_into_leaf(leaf, key, value);
 }
