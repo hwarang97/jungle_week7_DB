@@ -99,6 +99,24 @@ static ParsedSQL *make_select_one_column(const char *col_expr) {
     return sql;
 }
 
+static ParsedSQL *make_select_all_where_id_equals(const char *id_text) {
+    ParsedSQL *sql = make_select_all();
+
+    if (sql == NULL) return NULL;
+
+    sql->where = calloc(1, sizeof(WhereClause));
+    if (sql->where == NULL) {
+        free_parsed(sql);
+        return NULL;
+    }
+
+    strcpy(sql->where[0].column, "id");
+    strcpy(sql->where[0].op, "=");
+    strncpy(sql->where[0].value, id_text, sizeof(sql->where[0].value) - 1U);
+    sql->where_count = 1;
+    return sql;
+}
+
 /* ─── 테스트 케이스 ──────────────────────────────────────── */
 
 static void test_select_all_returns_rowset(void) {
@@ -133,6 +151,66 @@ static void test_count_star(void) {
         CHECK(strcmp(rs->col_names[0], "COUNT(*)") == 0, "col name");
         CHECK(strcmp(rs->rows[0][0], "4") == 0, "value == 4");
     }
+    rowset_free(rs);
+    free_parsed(sql);
+}
+
+static void test_select_where_id_existing_row(void) {
+    fprintf(stderr, "[INDEXED SELECT: WHERE id = existing]\n");
+    ParsedSQL *sql = make_select_all_where_id_equals("2");
+    RowSet *rs = NULL;
+    int status = storage_select_result("orders", sql, &rs);
+
+    CHECK(status == 0, "status == 0");
+    CHECK(rs != NULL, "rs != NULL");
+    if (rs != NULL) {
+        CHECK(rs->row_count == 1, "row_count == 1");
+        CHECK(rs->col_count == 5, "col_count == 5");
+        CHECK(strcmp(rs->rows[0][0], "2") == 0, "id == 2");
+        CHECK(strcmp(rs->rows[0][1], "banana") == 0, "item == banana");
+    }
+
+    rowset_free(rs);
+    free_parsed(sql);
+}
+
+static void test_select_where_id_missing_row(void) {
+    fprintf(stderr, "[INDEXED SELECT: WHERE id = missing]\n");
+    ParsedSQL *sql = make_select_all_where_id_equals("999");
+    RowSet *rs = NULL;
+    int status = storage_select_result("orders", sql, &rs);
+
+    CHECK(status == 0, "status == 0");
+    CHECK(rs != NULL, "rs != NULL");
+    if (rs != NULL) {
+        CHECK(rs->row_count == 0, "row_count == 0");
+        CHECK(rs->col_count == 5, "col_count == 5");
+    }
+
+    rowset_free(rs);
+    free_parsed(sql);
+}
+
+static void test_insert_then_select_where_id(void) {
+    fprintf(stderr, "[INDEXED SELECT: INSERT 후 WHERE id = ?]\n");
+    ParsedSQL *sql;
+    RowSet *rs = NULL;
+    char *values[] = {"5", "elderberry", "9.90", "2", "2024-07-01"};
+    int status = storage_insert("orders", NULL, values, 5);
+
+    CHECK(status == 0, "storage_insert == 0");
+
+    sql = make_select_all_where_id_equals("5");
+    status = storage_select_result("orders", sql, &rs);
+
+    CHECK(status == 0, "status == 0");
+    CHECK(rs != NULL, "rs != NULL");
+    if (rs != NULL) {
+        CHECK(rs->row_count == 1, "row_count == 1");
+        CHECK(strcmp(rs->rows[0][0], "5") == 0, "id == 5");
+        CHECK(strcmp(rs->rows[0][1], "elderberry") == 0, "item == elderberry");
+    }
+
     rowset_free(rs);
     free_parsed(sql);
 }
@@ -264,6 +342,8 @@ int main(void) {
 
     test_select_all_returns_rowset();
     test_count_star();
+    test_select_where_id_existing_row();
+    test_select_where_id_missing_row();
     test_sum_int();
     test_avg_float();
     test_min_float();
@@ -274,6 +354,7 @@ int main(void) {
     test_aggregate_unknown_column();
     test_rowset_free_null_safe();
     test_print_rowset_null_safe();
+    test_insert_then_select_where_id();
 
     cleanup_orders_fixture();
 

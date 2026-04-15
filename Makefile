@@ -13,6 +13,7 @@ TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
 
 SQL_SRCS = $(SRC_DIR)/main.c \
+           $(SRC_DIR)/bptree.c \
            $(SRC_DIR)/parser.c \
            $(SRC_DIR)/ast_print.c \
            $(SRC_DIR)/json_out.c \
@@ -22,6 +23,7 @@ SQL_SRCS = $(SRC_DIR)/main.c \
 
 SQL_TEST_SRCS = $(TEST_DIR)/test_parser.c \
                 $(TEST_DIR)/test_executor.c \
+                $(SRC_DIR)/bptree.c \
                 $(SRC_DIR)/parser.c \
                 $(SRC_DIR)/ast_print.c \
                 $(SRC_DIR)/json_out.c \
@@ -30,8 +32,8 @@ SQL_TEST_SRCS = $(TEST_DIR)/test_parser.c \
                 $(SRC_DIR)/storage.c
 
 STORAGE_TEST_TARGETS = test_storage_insert test_storage_delete test_storage_update test_storage_select_result
-STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c
-SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c
+STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/bptree.c
+SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c $(SRC_DIR)/bptree.c
 
 ifeq ($(OS),Windows_NT)
 EXEEXT = .exe
