@@ -493,8 +493,8 @@
       <h1>B+ Tree Step Simulator</h1>
       <p>
         현재 `feat/cycle-jiun` 브랜치의 구현 단계를 사람 눈으로 확인하기 위한 시뮬레이터입니다.
-        `search`, 리프 정렬 삽입, 루트 리프 split, 부모에 자리가 있을 때의 일반 리프 split 이
-        현재 코드와 같은 규칙으로 단계별로 진행됩니다.
+        `search`, 리프 정렬 삽입, 루트 리프 split, 부모 반영 리프 split,
+        내부 노드 split 과 연쇄 split 까지 현재 코드와 같은 규칙으로 단계별로 진행됩니다.
       </p>
     </section>
 
@@ -529,6 +529,28 @@
 
           <div class="connector-note" id="connector-note">root 의 key 구간을 보고 어느 리프로 내려갈지 결정합니다.</div>
 
+          <div class="tree-row hide" id="internal-row">
+            <article class="node" id="internal-0">
+              <div class="node-header">
+                <span class="node-title" id="internal-0-title">left internal</span>
+                <span class="node-type">내부 노드</span>
+              </div>
+              <div class="meta" id="internal-0-meta"></div>
+              <div class="keys" id="internal-0-keys"></div>
+              <div class="pointers" id="internal-0-pointers"></div>
+            </article>
+
+            <article class="node" id="internal-1">
+              <div class="node-header">
+                <span class="node-title" id="internal-1-title">right internal</span>
+                <span class="node-type">내부 노드</span>
+              </div>
+              <div class="meta" id="internal-1-meta"></div>
+              <div class="keys" id="internal-1-keys"></div>
+              <div class="pointers" id="internal-1-pointers"></div>
+            </article>
+          </div>
+
           <div class="tree-row leaf-row" id="leaf-row">
             <article class="node" id="leaf-0">
               <div class="node-header">
@@ -561,6 +583,28 @@
               <div class="keys" id="leaf-2-keys"></div>
               <div class="pointers" id="leaf-2-values"></div>
               <div class="leaf-link" id="leaf-2-link"></div>
+            </article>
+
+            <article class="node" id="leaf-3">
+              <div class="node-header">
+                <span class="node-title" id="leaf-3-title">leaf 4</span>
+                <span class="node-type">리프 노드</span>
+              </div>
+              <div class="meta" id="leaf-3-meta"></div>
+              <div class="keys" id="leaf-3-keys"></div>
+              <div class="pointers" id="leaf-3-values"></div>
+              <div class="leaf-link" id="leaf-3-link"></div>
+            </article>
+
+            <article class="node" id="leaf-4">
+              <div class="node-header">
+                <span class="node-title" id="leaf-4-title">leaf 5</span>
+                <span class="node-type">리프 노드</span>
+              </div>
+              <div class="meta" id="leaf-4-meta"></div>
+              <div class="keys" id="leaf-4-keys"></div>
+              <div class="pointers" id="leaf-4-values"></div>
+              <div class="leaf-link" id="leaf-4-link"></div>
             </article>
           </div>
         </div>
@@ -606,7 +650,7 @@
           지금 구현 단계 기준으로:
           `search`는 3리프 예시 트리에서 동작하고,
           `insert`는 단일 리프 정렬 삽입을,
-          `split`은 루트 리프 split 과 부모가 여유 있는 일반 리프 split 흐름을 보여줍니다.
+          `split`은 루트 리프 split, 부모 반영 리프 split, 내부 노드 split 흐름까지 보여줍니다.
         </p>
       </section>
     </div>
@@ -624,11 +668,12 @@
       },
       split: {
         title: "split",
-        presets: [40, 45, 55]
+        presets: [40, 55, 100]
       }
     };
 
-    const LEAF_LABELS = ["left leaf", "middle leaf", "right leaf"];
+    const LEAF_LABELS = ["left leaf", "middle leaf", "right leaf", "leaf 4", "leaf 5"];
+    const INTERNAL_LABELS = ["left internal", "right internal"];
 
     let currentMode = "search";
     let currentSteps = [];
@@ -647,6 +692,7 @@
           keys: [30, 50],
           pointers: ["child[0] → left leaf", "child[1] → middle leaf", "child[2] → right leaf"]
         },
+        internals: [],
         leaves: [
           { title: "left leaf", keys: [10, 20], values: [10, 20], next: "middle leaf" },
           { title: "middle leaf", keys: [30, 40], values: [30, 40], next: "right leaf" },
@@ -663,6 +709,7 @@
           keys: [10, 30],
           pointers: ["리프라서 children 을 사용하지 않음"]
         },
+        internals: [],
         leaves: [
           { title: "root leaf", keys: [10, 30], values: [10, 30], next: "NULL" }
         ]
@@ -677,6 +724,7 @@
           keys: [10, 20, 30],
           pointers: ["리프라서 children 을 사용하지 않음"]
         },
+        internals: [],
         leaves: [
           { title: "root leaf", keys: [10, 20, 30], values: [10, 20, 30], next: "NULL" }
         ]
@@ -691,6 +739,7 @@
           keys: [30],
           pointers: ["child[0] → left leaf", "child[1] → right leaf"]
         },
+        internals: [],
         leaves: [
           { title: "left leaf", keys: [10, 20], values: [10, 20], next: "right leaf" },
           { title: "right leaf", keys: [30, insertKey], values: [30, insertKey], next: "NULL" }
@@ -706,6 +755,7 @@
           keys: [30],
           pointers: ["child[0] → left leaf", "child[1] → right leaf"]
         },
+        internals: [],
         leaves: [
           { title: "left leaf", keys: [10, 20], values: [10, 20], next: "right leaf" },
           { title: "right leaf", keys: [30, 40, 50], values: [30, 40, 50], next: "NULL" }
@@ -721,10 +771,68 @@
           keys: [30, 50],
           pointers: ["child[0] → left leaf", "child[1] → middle leaf", "child[2] → right leaf"]
         },
+        internals: [],
         leaves: [
           { title: "left leaf", keys: [10, 20], values: [10, 20], next: "middle leaf" },
           { title: "middle leaf", keys: [30, 40], values: [30, 40], next: "right leaf" },
           { title: "right leaf", keys: [50, insertKey], values: [50, insertKey], next: "NULL" }
+        ]
+      };
+    }
+
+    function getInternalSplitTreeBefore() {
+      return {
+        root: {
+          title: "root",
+          isLeaf: false,
+          keys: [30, 50, 70],
+          pointers: [
+            "child[0] → leaf 1",
+            "child[1] → leaf 2",
+            "child[2] → leaf 3",
+            "child[3] → leaf 4"
+          ]
+        },
+        internals: [],
+        leaves: [
+          { title: "leaf 1", keys: [10, 20], values: [10, 20], next: "leaf 2" },
+          { title: "leaf 2", keys: [30, 40], values: [30, 40], next: "leaf 3" },
+          { title: "leaf 3", keys: [50, 60], values: [50, 60], next: "leaf 4" },
+          { title: "leaf 4", keys: [70, 80, 90], values: [70, 80, 90], next: "NULL" }
+        ]
+      };
+    }
+
+    function getInternalSplitTreeAfter(insertKey) {
+      return {
+        root: {
+          title: "new root",
+          isLeaf: false,
+          keys: [70],
+          pointers: ["child[0] → left internal", "child[1] → right internal"]
+        },
+        internals: [
+          {
+            title: "left internal",
+            keys: [30, 50],
+            pointers: [
+              "child[0] → leaf 1",
+              "child[1] → leaf 2",
+              "child[2] → leaf 3"
+            ]
+          },
+          {
+            title: "right internal",
+            keys: [90],
+            pointers: ["child[0] → leaf 4", "child[1] → leaf 5"]
+          }
+        ],
+        leaves: [
+          { title: "leaf 1", keys: [10, 20], values: [10, 20], next: "leaf 2" },
+          { title: "leaf 2", keys: [30, 40], values: [30, 40], next: "leaf 3" },
+          { title: "leaf 3", keys: [50, 60], values: [50, 60], next: "leaf 4" },
+          { title: "leaf 4", keys: [70, 80], values: [70, 80], next: "leaf 5" },
+          { title: "leaf 5", keys: [90, insertKey], values: [90, insertKey], next: "NULL" }
         ]
       };
     }
@@ -860,6 +968,67 @@
     }
 
     function buildSplitScenario(key) {
+      if (key >= 100) {
+        const before = getInternalSplitTreeBefore();
+        const after = getInternalSplitTreeAfter(key);
+        const insertedKeys = sortedInsert(before.leaves[3].keys, key);
+
+        return {
+          mode: "split",
+          status: `key ${key} 를 넣는 순간 오른쪽 리프와 루트가 연쇄적으로 split 되고, 새 루트가 한 층 더 생깁니다.`,
+          statusKind: "hit",
+          steps: [
+            {
+              label: "1단계",
+              text: `현재 root 는 내부 노드이고 key 는 [${before.root.keys.join(", ")}] 입니다. ${key} 는 가장 오른쪽 구간으로 내려갑니다.`,
+              state: cloneState(before),
+              activeNodes: ["root"]
+            },
+            {
+              label: "2단계",
+              text: `오른쪽 끝 리프의 현재 key 는 [${before.leaves[3].keys.join(", ")}] 입니다. 새 key ${key} 를 넣으면 임시 정렬 결과는 [${insertedKeys.join(", ")}] 가 되고 리프 split 이 먼저 필요합니다.`,
+              state: cloneState(before),
+              activeNodes: ["leaf-3"],
+              missNodes: ["leaf-3"],
+              splitSource: "leaf-3",
+              floatingKey: { value: key, x: 520, y: 0, scale: 1, opacity: 1 }
+            },
+            {
+              label: "3단계",
+              text: `리프 split 뒤에는 [70, 80] 과 [90, ${key}] 로 나뉘고, 새 오른쪽 리프의 첫 key 90 을 부모에 올리려 합니다. 그런데 부모 root 도 이미 가득 찬 상태입니다.`,
+              state: cloneState(before),
+              activeNodes: ["root", "leaf-3"],
+              missNodes: ["root", "leaf-3"],
+              promotedKey: { node: "root", key: 90 }
+            },
+            {
+              label: "4단계",
+              text: `그래서 root 내부 노드도 둘로 나눕니다. 가운데 key 70 이 한 단계 더 위로 올라갈 준비를 하고, 왼쪽 내부 노드는 [30, 50], 오른쪽 내부 노드는 [90] 을 갖습니다.`,
+              state: cloneState(after),
+              activeNodes: ["root", "internal-0", "internal-1", "leaf-3", "leaf-4"],
+              promotedKey: { node: "root", key: 70 },
+              focusKey: { node: "internal-1", key: 90 }
+            },
+            {
+              label: "5단계",
+              text: `부모가 없었기 때문에 key 70 을 가진 새 루트를 만듭니다. 이제 트리 높이가 1 증가하고, 아래에는 두 개의 내부 노드가 달립니다.`,
+              state: cloneState(after),
+              activeNodes: ["root", "internal-0", "internal-1"],
+              hitNodes: ["root", "internal-0", "internal-1"],
+              promotedKey: { node: "root", key: 70 }
+            },
+            {
+              label: "6단계",
+              text: `리프 연결도 계속 유지됩니다. leaf 1 → leaf 2 → leaf 3 → leaf 4 → leaf 5 순서가 살아 있고, key ${key} 는 맨 오른쪽 새 리프에서 검색됩니다.`,
+              state: cloneState(after),
+              activeNodes: ["leaf-4"],
+              hitNodes: ["leaf-4"],
+              focusKey: { node: "leaf-4", key }
+            }
+          ]
+        };
+      }
+
       if (key >= 55) {
         const before = getParentSplitTreeBefore();
         const after = getParentSplitTreeAfter(key);
@@ -978,7 +1147,7 @@
     }
 
     function clearNodeClasses() {
-      ["root-node", "leaf-0", "leaf-1", "leaf-2"].forEach((id) => {
+      ["root-node", "internal-0", "internal-1", "leaf-0", "leaf-1", "leaf-2", "leaf-3", "leaf-4"].forEach((id) => {
         const node = document.getElementById(id);
         node.classList.remove("active", "hit", "miss", "split-source", "reveal");
       });
@@ -1045,6 +1214,7 @@
     function renderState(step) {
       const state = step.state;
       const rootNode = document.getElementById("root-node");
+      const internalRow = document.getElementById("internal-row");
       const leafRow = document.getElementById("leaf-row");
       const connector = document.getElementById("connector-note");
 
@@ -1062,11 +1232,42 @@
 
       if (state.root.isLeaf) {
         connector.textContent = "현재 단계에서는 루트가 곧 리프 노드입니다.";
+      } else if (state.internals && state.internals.length > 0) {
+        connector.textContent = "root 가 내부 노드를 가리키고, 각 내부 노드는 다시 리프 범위를 나눠서 맡습니다.";
       } else {
         connector.textContent = "root 의 key 구간을 보고 어느 리프로 내려갈지 결정합니다.";
       }
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
+        const node = document.getElementById(`internal-${i}`);
+        const internal = state.internals ? state.internals[i] : null;
+
+        if (!internal) {
+          node.classList.add("new-node");
+          node.classList.add("empty-node");
+          node.classList.remove("reveal");
+          document.getElementById(`internal-${i}-title`).textContent = INTERNAL_LABELS[i];
+          document.getElementById(`internal-${i}-meta`).textContent = "";
+          document.getElementById(`internal-${i}-keys`).innerHTML = "";
+          document.getElementById(`internal-${i}-pointers`).innerHTML = "";
+          continue;
+        }
+
+        node.classList.remove("empty-node");
+        document.getElementById(`internal-${i}-title`).textContent = internal.title;
+        document.getElementById(`internal-${i}-meta`).textContent = `key_count = ${internal.keys.length}`;
+        renderKeyList(`internal-${i}-keys`, internal.keys, {
+          focusKey: step.focusKey && step.focusKey.node === `internal-${i}` ? step.focusKey.key : null,
+          promotedKey: step.promotedKey && step.promotedKey.node === `internal-${i}` ? step.promotedKey.key : null
+        });
+        renderPointerList(`internal-${i}-pointers`, internal.pointers.map(formatRootPointerLine));
+        node.classList.remove("new-node");
+        if (step.activeNodes && step.activeNodes.includes(`internal-${i}`)) {
+          node.classList.add("reveal");
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
         const node = document.getElementById(`leaf-${i}`);
         const leaf = state.leaves[i];
 
@@ -1137,6 +1338,7 @@
       }
 
       rootNode.classList.toggle("reveal", !state.root.isLeaf);
+      internalRow.classList.toggle("hide", !state.internals || state.internals.length === 0);
       leafRow.classList.toggle("hide", state.leaves.length === 0);
       applyFloatingKey(step.floatingKey);
     }
