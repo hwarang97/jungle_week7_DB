@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parent
 SQLPARSER_BIN = ROOT / ("sqlparser.exe" if os.name == "nt" else "sqlparser")
+DB_PERF_BENCH_BIN = ROOT / ("db_benchmark.exe" if os.name == "nt" else "db_benchmark")
 INDEX_HTML = ROOT / "index.html"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -39,6 +40,11 @@ BENCHMARKS = {
         "label": "SQL WHERE id index vs name scan",
         "make_target": "bench-sql-index",
         "timeout": 120,
+    },
+    "index-graph": {
+        "label": "Search/SELECT full scan vs B-tree vs B+Tree",
+        "make_target": "bench-index-graph",
+        "timeout": 240,
     },
 }
 
@@ -80,7 +86,44 @@ def run_process(command: list[str], timeout: int) -> dict:
     }
 
 
-def run_benchmark(target: str) -> dict:
+def ensure_db_performance_benchmark() -> dict | None:
+    build = run_process(["make", "db_benchmark"], 120)
+    if build.get("returncode") == 0 and DB_PERF_BENCH_BIN.exists():
+        return None
+
+    return {
+        "error": "failed to build db_benchmark",
+        "build": build,
+    }
+
+
+def clamp_int(value, default: int, min_value: int, max_value: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+
+    if parsed < min_value:
+        return min_value
+    if parsed > max_value:
+        return max_value
+    return parsed
+
+
+def parse_json_object(text: str) -> dict | None:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end < start:
+        return None
+
+    try:
+        parsed = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def run_benchmark(target: str, payload: dict | None = None) -> dict:
     spec = BENCHMARKS.get(target)
     if spec is None:
         return {
@@ -88,7 +131,14 @@ def run_benchmark(target: str) -> dict:
             "available": sorted(BENCHMARKS),
         }
 
-    result = run_process(["make", spec["make_target"]], spec["timeout"])
+    command = ["make", spec["make_target"]]
+    if target == "index-graph":
+        payload = payload or {}
+        rows = clamp_int(payload.get("rows"), 10000, 1, 1000000)
+        requests = clamp_int(payload.get("requests"), 5000, 1, 1000000)
+        command.extend([f"ROWS={rows}", f"REQUESTS={requests}"])
+
+    result = run_process(command, spec["timeout"])
     result.update(
         {
             "benchmark": target,
@@ -96,7 +146,45 @@ def run_benchmark(target: str) -> dict:
             "make_target": spec["make_target"],
         }
     )
+    if target == "index-graph":
+        result["rows"] = rows
+        result["requests"] = requests
+        parsed = parse_json_object(result.get("stdout", ""))
+        if parsed is not None:
+            result["data"] = parsed
     return result
+
+
+def run_db_performance_benchmark(size: int, queries: int, order: int, all_sizes: bool = False) -> dict:
+    build_error = ensure_db_performance_benchmark()
+    if build_error is not None:
+        return build_error
+
+    command = [
+        str(DB_PERF_BENCH_BIN),
+        "--json",
+        "--queries", str(queries),
+        "--order", str(order),
+    ]
+    if all_sizes:
+        command.append("--all")
+    else:
+        command.extend(["--size", str(size)])
+
+    result = run_process(command, 240)
+    if result.get("returncode") != 0:
+        result["error"] = "db_benchmark failed"
+        return result
+
+    parsed = parse_json_object(result.get("stdout", ""))
+    if parsed is None:
+        result["error"] = "db_benchmark did not return JSON"
+        return result
+
+    parsed["stderr"] = result.get("stderr", "")
+    parsed["returncode"] = result.get("returncode", 0)
+    parsed["elapsed_ms"] = result.get("elapsed_ms", 0)
+    return parsed
 
 
 def run_sqlparser(sql: str) -> dict:
@@ -198,6 +286,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "sqlparser_exists": SQLPARSER_BIN.exists(),
+                    "db_benchmark_exists": DB_PERF_BENCH_BIN.exists(),
                     "benchmarks": sorted(BENCHMARKS),
                 },
             )
@@ -231,8 +320,30 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/benchmark":
+            if "target" not in payload and (
+                "size" in payload or "queries" in payload or "all" in payload
+            ):
+                all_sizes = bool(payload.get("all", False))
+                allowed_sizes = {10000, 100000, 1000000}
+                size = clamp_int(payload.get("size"), 100000, 1, 1000000)
+                queries = clamp_int(payload.get("queries"), 5000, 1, 100000)
+                order = clamp_int(payload.get("order"), 4, 4, 1024)
+
+                if not all_sizes and size not in allowed_sizes:
+                    self._send_json(400, {"error": "size must be 10000, 100000, or 1000000"})
+                    return
+
+                result = run_db_performance_benchmark(
+                    size=size,
+                    queries=queries,
+                    order=order,
+                    all_sizes=all_sizes,
+                )
+                self._send_json(200, result)
+                return
+
             target = str(payload.get("target", "sql-index")).strip()
-            result = run_benchmark(target)
+            result = run_benchmark(target, payload)
             self._send_json(400 if "available" in result else 200, result)
             return
 
@@ -247,6 +358,7 @@ def main() -> None:
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(f"[server] MiniSQL viewer listening on http://0.0.0.0:{port}")
     print(f"[server] sqlparser binary: {SQLPARSER_BIN}")
+    print(f"[server] db_benchmark binary: {DB_PERF_BENCH_BIN}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
