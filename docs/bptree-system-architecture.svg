@@ -1,0 +1,182 @@
+<svg width="960" viewBox="0 0 960 680" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff;">
+
+  <defs>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#185FA5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#993C1D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 범례 (상단) ===== -->
+  <rect x="220" y="16" width="520" height="32" rx="16" fill="#f8f8f6" stroke="#e0e0dc" stroke-width="0.5"/>
+  <line x1="280" y1="32" x2="310" y2="32" stroke="#185FA5" stroke-width="2"/>
+  <text x="318" y="37" font-size="11" fill="#555">INSERT 흐름</text>
+  <line x1="430" y1="32" x2="460" y2="32" stroke="#0F6E56" stroke-width="2"/>
+  <text x="468" y="37" font-size="11" fill="#555">SELECT (id 인덱스)</text>
+  <line x1="600" y1="32" x2="630" y2="32" stroke="#993C1D" stroke-width="2"/>
+  <text x="638" y="37" font-size="11" fill="#555">SELECT (name 선형)</text>
+
+  <!-- ===== SQL 입력 (왼쪽) ===== -->
+  <rect x="40" y="100" width="150" height="110" rx="8" fill="#f8f8f6" stroke="#ccc" stroke-width="0.8"/>
+  <text x="115" y="125" font-size="13" font-weight="600" fill="#333" text-anchor="middle">SQL 입력</text>
+  <line x1="55" y1="135" x2="175" y2="135" stroke="#e0e0dc" stroke-width="0.5"/>
+  <text x="115" y="157" font-size="10" fill="#185FA5" text-anchor="middle" font-family="'SF Mono', monospace">INSERT INTO ...</text>
+  <text x="115" y="175" font-size="10" fill="#0F6E56" text-anchor="middle" font-family="'SF Mono', monospace">SELECT WHERE id=?</text>
+  <text x="115" y="193" font-size="10" fill="#993C1D" text-anchor="middle" font-family="'SF Mono', monospace">SELECT WHERE name=?</text>
+
+  <!-- SQL → Parser 화살표 -->
+  <line x1="190" y1="155" x2="248" y2="155" stroke="#888" stroke-width="1.2" marker-end="url(#arr-gray)"/>
+
+  <!-- ===== SQL 처리기 영역 (중앙) ===== -->
+  <rect x="255" y="72" width="200" height="280" rx="10" fill="none" stroke="#ddd" stroke-width="0.8" stroke-dasharray="6 3"/>
+  <text x="355" y="92" font-size="12" fill="#aaa" text-anchor="middle">SQL 처리기</text>
+
+  <!-- Parser -->
+  <rect x="280" y="110" width="150" height="44" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="355" y="131" font-size="13" font-weight="600" fill="#0C447C" text-anchor="middle">Parser</text>
+  <text x="355" y="147" font-size="10" fill="#185FA5" text-anchor="middle">SQL 구문 분석</text>
+
+  <!-- Parser → Executor -->
+  <line x1="355" y1="154" x2="355" y2="185" stroke="#888" stroke-width="1" marker-end="url(#arr-gray)"/>
+
+  <!-- Executor -->
+  <rect x="280" y="190" width="150" height="44" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="355" y="211" font-size="13" font-weight="600" fill="#0C447C" text-anchor="middle">Executor</text>
+  <text x="355" y="227" font-size="10" fill="#185FA5" text-anchor="middle">명령 실행 분기</text>
+
+  <!-- WHERE 조건 판별 -->
+  <rect x="280" y="268" width="150" height="44" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <text x="355" y="289" font-size="12" font-weight="600" fill="#3C3489" text-anchor="middle">WHERE 조건 판별</text>
+  <text x="355" y="305" font-size="10" fill="#534AB7" text-anchor="middle">id 조건? → 인덱스 사용</text>
+
+  <!-- Executor → WHERE 판별 (SELECT 경로) -->
+  <line x1="355" y1="234" x2="355" y2="265" stroke="#888" stroke-width="1" marker-end="url(#arr-gray)"/>
+  <text x="365" y="253" font-size="9" fill="#888" text-anchor="start">SELECT일 때</text>
+
+  <!-- ===== 오른쪽 상단: 테이블 저장소 ===== -->
+  <rect x="570" y="80" width="170" height="100" rx="8" fill="#f8f8f6" stroke="#ccc" stroke-width="0.8"/>
+  <text x="655" y="105" font-size="13" font-weight="600" fill="#333" text-anchor="middle">테이블 저장소</text>
+  <line x1="585" y1="115" x2="725" y2="115" stroke="#e0e0dc" stroke-width="0.5"/>
+  <text x="655" y="135" font-size="10" fill="#555" text-anchor="middle">레코드 배열</text>
+  <!-- 레코드 표현 -->
+  <rect x="590" y="148" width="40" height="20" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.4"/>
+  <text x="610" y="162" font-size="9" fill="#0C447C" text-anchor="middle">rec0</text>
+  <rect x="635" y="148" width="40" height="20" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.4"/>
+  <text x="655" y="162" font-size="9" fill="#0C447C" text-anchor="middle">rec1</text>
+  <rect x="680" y="148" width="40" height="20" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.4"/>
+  <text x="700" y="162" font-size="9" fill="#0C447C" text-anchor="middle">rec2</text>
+
+  <!-- ===== 오른쪽 하단: B+ Tree 인덱스 ===== -->
+  <rect x="570" y="220" width="350" height="160" rx="8" fill="none" stroke="#0F6E56" stroke-width="0.8" stroke-dasharray="6 3"/>
+  <text x="745" y="244" font-size="12" fill="#0F6E56" text-anchor="middle">B+ Tree 인덱스</text>
+
+  <!-- B+ Tree 미니 구조 -->
+  <!-- 루트 -->
+  <rect x="700" y="260" width="70" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="735" y="279" font-size="10" font-weight="600" fill="#085041" text-anchor="middle">30</text>
+
+  <!-- 리프들 -->
+  <rect x="620" y="310" width="70" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="655" y="329" font-size="9" font-weight="600" fill="#085041" text-anchor="middle">10, 20</text>
+
+  <rect x="780" y="310" width="70" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="815" y="329" font-size="9" font-weight="600" fill="#085041" text-anchor="middle">30, 45</text>
+
+  <!-- 트리 연결선 -->
+  <line x1="720" y1="288" x2="670" y2="310" stroke="#0F6E56" stroke-width="0.5"/>
+  <line x1="750" y1="288" x2="800" y2="310" stroke="#0F6E56" stroke-width="0.5"/>
+
+  <!-- 리프 next -->
+  <line x1="690" y1="324" x2="778" y2="324" stroke="#1D9E75" stroke-width="0.6"/>
+  <polygon points="778,324 773,321 773,327" fill="#1D9E75"/>
+
+  <!-- 리프 → 레코드 참조 표시 -->
+  <text x="745" y="365" font-size="10" fill="#0F6E56" text-anchor="middle">id → 레코드 위치 매핑</text>
+
+  <!-- ===== INSERT 흐름 (파란색) ===== -->
+
+  <!-- Executor → 테이블 저장소 -->
+  <path d="M430 210 L555 140" fill="none" stroke="#185FA5" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <text x="500" y="165" font-size="10" fill="#185FA5" font-weight="500" text-anchor="middle" transform="rotate(-18, 500, 165)">레코드 저장</text>
+
+  <!-- 테이블 → ID 부여 박스 -->
+  <rect x="770" y="100" width="130" height="36" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="835" y="118" font-size="11" font-weight="500" fill="#0C447C" text-anchor="middle">ID 자동 부여</text>
+  <text x="835" y="132" font-size="9" fill="#185FA5" text-anchor="middle">auto-increment</text>
+  <line x1="740" y1="130" x2="768" y2="122" stroke="#185FA5" stroke-width="1.2" marker-end="url(#arr-blue)"/>
+
+  <!-- ID 부여 → B+ Tree 등록 -->
+  <path d="M835 136 L780 250" fill="none" stroke="#185FA5" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <rect x="820" y="180" width="120" height="26" rx="13" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.6"/>
+  <text x="880" y="197" font-size="10" fill="#0C447C" text-anchor="middle" font-family="'SF Mono', monospace">bptree_insert()</text>
+
+  <!-- ===== SELECT WHERE id=? 흐름 (초록색) ===== -->
+
+  <!-- WHERE 판별 → B+ Tree -->
+  <path d="M430 290 L618 290" fill="none" stroke="#0F6E56" stroke-width="1.8" marker-end="url(#arr-green)"/>
+  <text x="520" y="283" font-size="10" fill="#0F6E56" font-weight="500" text-anchor="middle">id 조건 → 인덱스 검색</text>
+
+  <!-- bptree_search 라벨 -->
+  <rect x="470" y="298" width="120" height="22" rx="11" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="530" y="313" font-size="10" fill="#085041" text-anchor="middle" font-family="'SF Mono', monospace">bptree_search()</text>
+
+  <!-- B+ Tree → 레코드 반환 -->
+  <path d="M655 310 L655 182" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#arr-green)"/>
+  <text x="645" y="250" font-size="9" fill="#0F6E56" text-anchor="end">레코드 위치</text>
+
+  <!-- 결과 반환 (초록) -->
+  <rect x="580" y="400" width="140" height="32" rx="16" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="650" y="421" font-size="12" font-weight="500" fill="#085041" text-anchor="middle">결과 반환 O(log n)</text>
+  <line x1="650" y1="380" x2="650" y2="398" stroke="#0F6E56" stroke-width="1" marker-end="url(#arr-green)"/>
+
+  <!-- ===== SELECT WHERE name=? 흐름 (주황/빨간색) ===== -->
+
+  <!-- WHERE 판별 → 선형 탐색 -->
+  <path d="M355 312 L355 470" fill="none" stroke="#993C1D" stroke-width="1.5"/>
+  <line x1="355" y1="470" x2="560" y2="470" stroke="#993C1D" stroke-width="1.8" marker-end="url(#arr-red)"/>
+  <text x="355" y="400" font-size="10" fill="#993C1D" font-weight="500" text-anchor="end" transform="rotate(-90, 345, 400)">name 조건</text>
+
+  <!-- 선형 탐색 영역 -->
+  <rect x="565" y="445" width="350" height="80" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.8"/>
+  <text x="740" y="470" font-size="13" font-weight="600" fill="#712B13" text-anchor="middle">선형 탐색 (Linear Scan)</text>
+  <text x="740" y="490" font-size="10" fill="#993C1D" text-anchor="middle">인덱스 없음 → 전체 레코드를 처음부터 끝까지 순회</text>
+
+  <!-- 레코드 순회 표현 -->
+  <rect x="600" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <rect x="638" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <rect x="676" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <rect x="714" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <rect x="752" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <text x="800" y="513" font-size="10" fill="#993C1D">...</text>
+  <rect x="820" y="500" width="32" height="16" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="0.4"/>
+  <text x="616" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+  <text x="654" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+  <text x="692" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+  <text x="730" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+  <text x="768" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+  <text x="836" y="512" font-size="8" fill="#712B13" text-anchor="middle">확인</text>
+
+  <!-- 결과 반환 (빨강) -->
+  <rect x="670" y="545" width="140" height="32" rx="16" fill="#FAECE7" stroke="#993C1D" stroke-width="0.8"/>
+  <text x="740" y="566" font-size="12" font-weight="500" fill="#712B13" text-anchor="middle">결과 반환 O(n)</text>
+  <line x1="740" y1="525" x2="740" y2="543" stroke="#993C1D" stroke-width="1" marker-end="url(#arr-red)"/>
+
+  <!-- ===== 하단 성능 비교 배너 ===== -->
+  <rect x="140" y="610" width="680" height="44" rx="8" fill="#f8f8f6" stroke="#e0e0dc" stroke-width="0.6"/>
+  <text x="340" y="633" font-size="12" fill="#0F6E56" font-weight="500" text-anchor="middle">WHERE id = ?  →  B+ Tree 인덱스  →  O(log n)</text>
+  <text x="340" y="648" font-size="10" fill="#0F6E56" text-anchor="middle">100만 건에서 수 ms</text>
+
+  <line x1="480" y1="618" x2="480" y2="648" stroke="#e0e0dc" stroke-width="0.5"/>
+
+  <text x="620" y="633" font-size="12" fill="#993C1D" font-weight="500" text-anchor="middle">WHERE name = ?  →  선형 탐색  →  O(n)</text>
+  <text x="620" y="648" font-size="10" fill="#993C1D" text-anchor="middle">100만 건에서 수백~수천 ms</text>
+
+</svg>
