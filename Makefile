@@ -2,13 +2,14 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -O2 -I./include -I./src
 SRC_DIR = src
 TEST_DIR = tests
-BPTREE_TEST_DIR = test
 BENCH_DIR = benchmark
 
 SQL_TARGET = sqlparser
 SQL_TEST_TARGET = test_runner
 BPTREE_TARGET = bptree
-BPTREE_TEST_TARGET = test_bptree
+STRUCTURE_TEST_TARGET = test_structure
+SEARCH_TEST_TARGET = test_search
+TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
 
 SQL_SRCS = $(SRC_DIR)/main.c \
@@ -39,11 +40,15 @@ all: $(BPTREE_TARGET)
 $(BPTREE_TARGET): $(SRC_DIR)/bptree_main.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BPTREE_TEST_TARGET): $(BPTREE_TEST_DIR)/test_bptree.c $(SRC_DIR)/bptree.c
+$(STRUCTURE_TEST_TARGET): test/test_structure.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: $(BPTREE_TEST_TARGET)
-	./$(BPTREE_TEST_TARGET)
+$(SEARCH_TEST_TARGET): test/test_search.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+test: $(TEST_TARGETS)
+	./$(STRUCTURE_TEST_TARGET)
+	./$(SEARCH_TEST_TARGET)
 
 $(BPTREE_BENCH_TARGET): $(BENCH_DIR)/bench_search.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
@@ -85,7 +90,7 @@ valgrind: $(SQL_TARGET)
 	valgrind --leak-check=full --error-exitcode=1 ./$(SQL_TARGET) $(SQL)
 
 clean:
-	rm -f $(BPTREE_TARGET) $(BPTREE_TEST_TARGET) $(BPTREE_BENCH_TARGET)
+	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET)
 	rm -f $(SQL_TARGET) $(SQL_TEST_TARGET) $(STORAGE_TEST_TARGETS)
 	rm -f data/*.csv data/*.schema
 	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp

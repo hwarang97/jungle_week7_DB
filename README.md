@@ -20,20 +20,26 @@
 ## 현재 레포 상태
 
 - 기존 week6 SQL 처리기 코드는 그대로 보존되어 있습니다.
-- week7 시작을 위해 `B+ Tree` 골격 파일, 테스트 스켈레톤, 벤치마크 스켈레톤, 협업 문서를 추가했습니다.
-- 기존 SQL 처리기 실행 경로도 계속 재활용할 수 있도록 `Makefile`에 별도 타깃을 유지했습니다.
+- week7 시작을 위해 `B+ Tree` 골격 파일, 테스트, 벤치마크, 협업 문서를 추가했습니다.
+- 사이클 1 선정 코드 기준으로 `search` 구현, 구조체 확정, `search` 테스트, 시각화 시뮬레이터가 반영되어 있습니다.
 
 ## 빌드 및 실행
 
 ```bash
-make                # B+ Tree 시작용 바이너리 빌드
+make
 ./bptree
+```
 
-make test           # B+ Tree 스켈레톤 테스트 실행
-make bench          # B+ Tree 벤치마크 스켈레톤 실행
+```bash
+make test
+make bench
+```
 
-make sqlparser      # 기존 week6 SQL 처리기 빌드
-make test-sqlparser # 기존 week6 테스트 실행
+기존 SQL 처리기 코드는 별도 타깃으로 계속 빌드할 수 있습니다.
+
+```bash
+make sqlparser
+make test-sqlparser
 ```
 
 ## 프로젝트 구조
@@ -41,20 +47,22 @@ make test-sqlparser # 기존 week6 테스트 실행
 ### week7 핵심 파일
 
 - `src/bptree.h`: B+ Tree 구조체와 함수 선언
-- `src/bptree.c`: B+ Tree 기본 구현 골격
-- `src/bptree_main.c`: week7용 시작 진입점
+- `src/bptree.c`: B+ Tree 생성/해제와 사이클 1 `search` 구현
+- `src/bptree_main.c`: `bptree` 실행 진입점
 - `src/sql_processor.h`: 기존 SQL 처리기 연결용 헤더
-- `src/sql_processor.c`: 기존 SQL 처리기 연결 지점 메모용 구현 파일
-- `test/test_bptree.c`: B+ Tree 단위 테스트 스켈레톤
+- `src/sql_processor.c`: 기존 SQL 처리기 래퍼 실험 코드
+- `test/test_structure.c`: 구조체와 기본 상태 검증
+- `test/test_search.c`: `search` 동작과 엣지 케이스 검증
 - `benchmark/bench_search.c`: 검색 벤치마크 스켈레톤
+- `docs/bptree-search-simulator.html`: 사람이 `search` 흐름을 볼 수 있는 시뮬레이터
 - `WORKFLOW.md`: 팀 협업 규칙
 
 ### 현재 재활용 중인 기존 week6 파일
 
+- `src/main.c`
 - `src/parser.c`
 - `src/executor.c`
 - `src/storage.c`
-- `src/main.c`
 - `include/types.h`
 - `tests/`
 
@@ -99,30 +107,6 @@ make test-sqlparser # 기존 week6 테스트 실행
 3. `insert` 후 overflow가 나면 `split`이 일어나는 이유
 4. 리프 노드 연결이 범위 검색에 주는 이점
 5. `INSERT` / `SELECT WHERE id = ...` 에서 인덱스가 연결되는 지점
-
-## 브랜치 전략
-
-- `main`에는 팀이 그 사이클에서 확정한 코드만 올립니다.
-- 개인 탐색 브랜치는 `feat/<작업내용>-<이름>` 규칙을 사용합니다.
-- 예시: `feat/cycle1-struct-search-jiun`
-- 수렴 단계에서는 `feat/benchmark`, `feat/test`, `feat/edge-case`, `feat/cleanup` 같은 기능 브랜치로 전환합니다.
-
-사이클 시작 명령:
-
-```bash
-git checkout main
-git pull origin main
-git checkout <내 브랜치>
-git merge main
-```
-
-선정 후 `main` 반영:
-
-```bash
-git checkout main
-git merge <선정된 브랜치>
-git push origin main
-```
 
 ## 참고 문서
 

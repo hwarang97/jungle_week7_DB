@@ -57,11 +57,6 @@ git push origin main
 git checkout main
 git pull origin main
 git checkout -b feat/benchmark
-```
-
-작업 후:
-
-```bash
 git add .
 git commit -m "[벤치마크] 100만건 INSERT 측정"
 git checkout main

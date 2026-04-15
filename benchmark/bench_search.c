@@ -3,24 +3,40 @@
 
 #include "../src/bptree.h"
 
-static void benchmark_bptree_search(void) {
+static void benchmark_bptree_search(void)
+{
     clock_t start = clock();
-    clock_t end = clock();
-    double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+    BPTree *tree = bptree_create();
+    clock_t end;
 
-    /* TODO: 수렴 Phase에서 실제 검색 벤치마크를 넣는다. */
-    printf("B+ Tree search benchmark: %.6f sec\n", elapsed);
+    if (!tree) {
+        printf("B+ Tree benchmark setup failed\n");
+        return;
+    }
+
+    (void)bptree_search(tree, 1000000);
+    end = clock();
+
+    printf("B+ Tree search skeleton: %.6f sec\n",
+           (double)(end - start) / CLOCKS_PER_SEC);
+    bptree_destroy(tree);
 }
 
-static void benchmark_linear_search(void) {
+static void benchmark_linear_search(void)
+{
     clock_t start = clock();
-    clock_t end = clock();
-    double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+    volatile int found = 0;
+    clock_t end;
 
-    printf("Linear search benchmark: %.6f sec\n", elapsed);
+    (void)found;
+    end = clock();
+
+    printf("Linear search skeleton: %.6f sec\n",
+           (double)(end - start) / CLOCKS_PER_SEC);
 }
 
-int main(void) {
+int main(void)
+{
     benchmark_bptree_search();
     benchmark_linear_search();
     return 0;
