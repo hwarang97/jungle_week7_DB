@@ -175,16 +175,27 @@ static void test_search_single_leaf_last_key(void)
     static int first = 1;
     static int second = 2;
     static int third = 3;
+    int key_count = BPTREE_MAX_KEYS < 3 ? BPTREE_MAX_KEYS : 3;
 
-    tree->root->key_count = 3;
+    tree->root->key_count = key_count;
     tree->root->keys[0] = 5;
-    tree->root->keys[1] = 15;
-    tree->root->keys[2] = 25;
     tree->root->values[0] = &first;
-    tree->root->values[1] = &second;
-    tree->root->values[2] = &third;
+    if (key_count >= 2) {
+        tree->root->keys[1] = 15;
+        tree->root->values[1] = &second;
+    }
+#if BPTREE_MAX_KEYS >= 3
+    if (key_count >= 3) {
+        tree->root->keys[2] = 25;
+        tree->root->values[2] = &third;
+    }
+#endif
 
-    assert(bptree_search(tree, 25) == &third);
+    if (key_count == 3) {
+        assert(bptree_search(tree, 25) == &third);
+    } else {
+        assert(bptree_search(tree, 15) == &second);
+    }
 
     bptree_destroy(tree);
 }

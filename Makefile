@@ -10,8 +10,10 @@ BPTREE_TARGET = bptree
 STRUCTURE_TEST_TARGET = test_structure
 SEARCH_TEST_TARGET = test_search
 EDGE_TEST_TARGET = test_edge_cases
+ORDER_MATRIX_TEST_TARGET = test_order_matrix
 TEST_TARGETS = $(STRUCTURE_TEST_TARGET) $(SEARCH_TEST_TARGET) $(EDGE_TEST_TARGET)
 BPTREE_BENCH_TARGET = bench_search
+BPTREE_SCALE_BENCH_TARGET = bench_bptree_scale
 SQL_BENCH_TARGET = bench_sql_index
 
 SQL_SRCS = $(SRC_DIR)/main.c \
@@ -43,7 +45,9 @@ RUN_BPTREE_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_TARGET)$(EXEE
 RUN_STRUCTURE_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(STRUCTURE_TEST_TARGET)$(EXEEXT)'"
 RUN_SEARCH_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SEARCH_TEST_TARGET)$(EXEEXT)'"
 RUN_EDGE_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(EDGE_TEST_TARGET)$(EXEEXT)'"
+RUN_ORDER_MATRIX_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(ORDER_MATRIX_TEST_TARGET)$(EXEEXT)'"
 RUN_BPTREE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_BENCH_TARGET)$(EXEEXT)'"
+RUN_BPTREE_SCALE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)'"
 RUN_SQL_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_BENCH_TARGET)$(EXEEXT)'"
 RUN_SQL_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TARGET)$(EXEEXT)'"
 RUN_SQL_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TEST_TARGET)$(EXEEXT)'"
@@ -54,7 +58,9 @@ RUN_BPTREE_TARGET = ./$(BPTREE_TARGET)$(EXEEXT)
 RUN_STRUCTURE_TEST_TARGET = ./$(STRUCTURE_TEST_TARGET)$(EXEEXT)
 RUN_SEARCH_TEST_TARGET = ./$(SEARCH_TEST_TARGET)$(EXEEXT)
 RUN_EDGE_TEST_TARGET = ./$(EDGE_TEST_TARGET)$(EXEEXT)
+RUN_ORDER_MATRIX_TEST_TARGET = ./$(ORDER_MATRIX_TEST_TARGET)$(EXEEXT)
 RUN_BPTREE_BENCH_TARGET = ./$(BPTREE_BENCH_TARGET)$(EXEEXT)
+RUN_BPTREE_SCALE_BENCH_TARGET = ./$(BPTREE_SCALE_BENCH_TARGET)$(EXEEXT)
 RUN_SQL_BENCH_TARGET = ./$(SQL_BENCH_TARGET)$(EXEEXT)
 RUN_SQL_TARGET = ./$(SQL_TARGET)$(EXEEXT)
 RUN_SQL_TEST_TARGET = ./$(SQL_TEST_TARGET)$(EXEEXT)
@@ -77,6 +83,9 @@ $(SEARCH_TEST_TARGET): test/test_search.c $(SRC_DIR)/bptree.c
 $(EDGE_TEST_TARGET): test/test_edge_cases.c $(SRC_DIR)/storage.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(ORDER_MATRIX_TEST_TARGET): test/test_order_matrix.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
 test: $(TEST_TARGETS)
 	$(RUN_STRUCTURE_TEST_TARGET)
 	$(RUN_SEARCH_TEST_TARGET)
@@ -88,6 +97,12 @@ $(BPTREE_BENCH_TARGET): $(BENCH_DIR)/bench_search.c $(SRC_DIR)/bptree.c
 bench: $(BPTREE_BENCH_TARGET)
 	$(RUN_BPTREE_BENCH_TARGET)
 
+$(BPTREE_SCALE_BENCH_TARGET): $(BENCH_DIR)/bench_bptree_scale.c $(SRC_DIR)/bptree.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+bench-bptree-scale: $(BPTREE_SCALE_BENCH_TARGET)
+	$(RUN_BPTREE_SCALE_BENCH_TARGET)
+
 $(SQL_BENCH_TARGET): $(BENCH_DIR)/bench_sql_index.c $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
@@ -96,6 +111,9 @@ bench-sql-index: $(SQL_BENCH_TARGET)
 
 verify-cycle3: test test-sqlparser bench-sql-index
 	./run_cycle3_index_demo.sh
+
+order-matrix:
+	./run_order_matrix.sh
 
 sqlparser: $(SQL_TARGET)
 
@@ -131,7 +149,7 @@ valgrind: $(SQL_TARGET)
 	valgrind --leak-check=full --error-exitcode=1 $(RUN_SQL_TARGET) $(SQL)
 
 clean:
-	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET) $(SQL_BENCH_TARGET)
+	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET) $(BPTREE_SCALE_BENCH_TARGET) $(SQL_BENCH_TARGET)
 	rm -f $(SQL_TARGET) $(SQL_TEST_TARGET) $(STORAGE_TEST_TARGETS)
 	rm -f data/*.csv data/*.schema
 	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp

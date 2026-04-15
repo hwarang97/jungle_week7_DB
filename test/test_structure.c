@@ -219,21 +219,25 @@ static void test_insert_single_leaf_sorted(void)
 {
     BPTree *tree = bptree_create();
     int values[3] = {200, 100, 300};
+    int expected_keys[3] = {10, 20, 30};
+    int expected_order[3] = {1, 0, 2};
+    int insert_count = BPTREE_MAX_KEYS < 3 ? BPTREE_MAX_KEYS : 3;
+    int index;
 
     assert(tree != NULL);
     assert(bptree_insert(tree, 20, &values[0]) == 0);
     assert(bptree_insert(tree, 10, &values[1]) == 0);
-    assert(bptree_insert(tree, 30, &values[2]) == 0);
+    if (insert_count == 3) {
+        assert(bptree_insert(tree, 30, &values[2]) == 0);
+    }
 
     assert(tree->root->is_leaf == 1);
-    assert(tree->root->key_count == 3);
-    assert(tree->root->keys[0] == 10);
-    assert(tree->root->keys[1] == 20);
-    assert(tree->root->keys[2] == 30);
-    assert(bptree_search(tree, 10) == &values[1]);
-    assert(bptree_search(tree, 20) == &values[0]);
-    assert(bptree_search(tree, 30) == &values[2]);
-    assert_tree_invariants(tree, 3);
+    assert(tree->root->key_count == insert_count);
+    for (index = 0; index < insert_count; ++index) {
+        assert(tree->root->keys[index] == expected_keys[index]);
+        assert(bptree_search(tree, expected_keys[index]) == &values[expected_order[index]]);
+    }
+    assert_tree_invariants(tree, insert_count);
 
     bptree_destroy(tree);
 }
@@ -261,8 +265,10 @@ static void test_leaf_split_creates_new_root(void)
 {
     BPTree *tree = bptree_create();
     int values[4] = {10, 20, 30, 40};
-    BPTreeNode *left_leaf;
-    BPTreeNode *right_leaf;
+    BPTreeNode *leaf;
+    int expected_keys[4] = {10, 20, 30, 40};
+    int seen_count = 0;
+    int index;
 
     assert(tree != NULL);
     assert(bptree_insert(tree, 10, &values[0]) == 0);
@@ -271,24 +277,26 @@ static void test_leaf_split_creates_new_root(void)
     assert(bptree_insert(tree, 40, &values[3]) == 0);
 
     assert(tree->root->is_leaf == 0);
-    assert(tree->root->key_count == 1);
-    assert(tree->root->keys[0] == 30);
+    assert(tree->root->key_count >= 1);
+    assert(tree->first_leaf != NULL);
 
-    left_leaf = tree->root->children[0];
-    right_leaf = tree->root->children[1];
+    leaf = tree->first_leaf;
+    while (leaf != NULL) {
+        int key_index;
 
-    assert(left_leaf != NULL);
-    assert(right_leaf != NULL);
-    assert(left_leaf->is_leaf == 1);
-    assert(right_leaf->is_leaf == 1);
-    assert(left_leaf->key_count == 2);
-    assert(right_leaf->key_count == 2);
-    assert(left_leaf->keys[0] == 10);
-    assert(left_leaf->keys[1] == 20);
-    assert(right_leaf->keys[0] == 30);
-    assert(right_leaf->keys[1] == 40);
-    assert(left_leaf->next == right_leaf);
-    assert(tree->first_leaf == left_leaf);
+        assert(leaf->is_leaf == 1);
+        for (key_index = 0; key_index < leaf->key_count; ++key_index) {
+            assert(seen_count < 4);
+            assert(leaf->keys[key_index] == expected_keys[seen_count]);
+            seen_count++;
+        }
+        leaf = leaf->next;
+    }
+
+    assert(seen_count == 4);
+    for (index = 0; index < 4; ++index) {
+        assert(bptree_search(tree, expected_keys[index]) == &values[index]);
+    }
     assert_tree_invariants(tree, 4);
 
     bptree_destroy(tree);
@@ -298,10 +306,9 @@ static void test_internal_split_keeps_search_and_leaf_chain(void)
 {
     BPTree *tree = bptree_create();
     int values[10];
-    BPTreeNode *left_internal;
-    BPTreeNode *right_internal;
     BPTreeNode *leaf;
-    int expected_first_keys[5] = {10, 30, 50, 70, 90};
+    int expected_keys[10] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+    int seen_count = 0;
     int index;
 
     assert(tree != NULL);
@@ -312,29 +319,21 @@ static void test_internal_split_keeps_search_and_leaf_chain(void)
     }
 
     assert(tree->root->is_leaf == 0);
-    assert(tree->root->key_count == 1);
-    assert(tree->root->keys[0] == 70);
-
-    left_internal = tree->root->children[0];
-    right_internal = tree->root->children[1];
-
-    assert(left_internal != NULL);
-    assert(right_internal != NULL);
-    assert(left_internal->is_leaf == 0);
-    assert(right_internal->is_leaf == 0);
-    assert(left_internal->key_count == 2);
-    assert(right_internal->key_count == 1);
-    assert(left_internal->keys[0] == 30);
-    assert(left_internal->keys[1] == 50);
-    assert(right_internal->keys[0] == 90);
+    assert(tree->root->key_count >= 1);
 
     leaf = tree->first_leaf;
-    for (index = 0; index < 5; index++) {
-        assert(leaf != NULL);
-        assert(leaf->keys[0] == expected_first_keys[index]);
+    while (leaf != NULL) {
+        int key_index;
+
+        assert(leaf->is_leaf == 1);
+        for (key_index = 0; key_index < leaf->key_count; ++key_index) {
+            assert(seen_count < 10);
+            assert(leaf->keys[key_index] == expected_keys[seen_count]);
+            seen_count++;
+        }
         leaf = leaf->next;
     }
-    assert(leaf == NULL);
+    assert(seen_count == 10);
 
     for (index = 0; index < 10; index++) {
         assert(bptree_search(tree, (index + 1) * 10) == &values[index]);

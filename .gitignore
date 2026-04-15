@@ -10,6 +10,8 @@ test_insert
 test_search
 test_edge_cases
 bench_search
+bench_sql_index
+bench_bptree_scale
 sqlparser
 test_runner
 test_storage_insert
