@@ -1,0 +1,115 @@
+<svg width="960" viewBox="0 0 960 520" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff;">
+
+  <!-- 루트 노드 라벨 -->
+  <text x="60" y="62" font-size="12" fill="#888" text-anchor="start">루트 노드</text>
+  <line x1="120" y1="62" x2="410" y2="62" stroke="#ccc" stroke-width="0.5" stroke-dasharray="4 3"/>
+
+  <!-- 루트 노드 [30] -->
+  <rect x="415" y="38" width="90" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.8"/>
+  <text x="460" y="65" font-size="15" font-weight="600" fill="#0C447C" text-anchor="middle">30</text>
+
+  <!-- separator key 설명 -->
+  <text x="460" y="118" font-size="11" fill="#aaa" text-anchor="middle">separator key (탐색 경로 분기)</text>
+
+  <!-- 루트→내부 연결선 -->
+  <line x1="435" y1="82" x2="240" y2="138" stroke="#999" stroke-width="0.7"/>
+  <line x1="485" y1="82" x2="680" y2="138" stroke="#999" stroke-width="0.7"/>
+
+  <!-- 내부 노드 라벨 -->
+  <text x="60" y="162" font-size="12" fill="#888" text-anchor="start">내부 노드</text>
+  <line x1="126" y1="162" x2="145" y2="162" stroke="#ccc" stroke-width="0.5" stroke-dasharray="4 3"/>
+
+  <!-- 내부 노드 왼쪽: [10 | 20] -->
+  <rect x="150" y="138" width="140" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <line x1="220" y1="138" x2="220" y2="182" stroke="#534AB7" stroke-width="0.4" opacity="0.4"/>
+  <text x="185" y="165" font-size="15" font-weight="600" fill="#3C3489" text-anchor="middle">10</text>
+  <text x="255" y="165" font-size="15" font-weight="600" fill="#3C3489" text-anchor="middle">20</text>
+
+  <!-- 내부 노드 오른쪽: [50 | 80] -->
+  <rect x="620" y="138" width="140" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+  <line x1="690" y1="138" x2="690" y2="182" stroke="#534AB7" stroke-width="0.4" opacity="0.4"/>
+  <text x="655" y="165" font-size="15" font-weight="600" fill="#3C3489" text-anchor="middle">50</text>
+  <text x="725" y="165" font-size="15" font-weight="600" fill="#3C3489" text-anchor="middle">80</text>
+
+  <!-- 내부→리프 연결선 왼쪽 -->
+  <line x1="175" y1="182" x2="100" y2="268" stroke="#999" stroke-width="0.5"/>
+  <line x1="220" y1="182" x2="250" y2="268" stroke="#999" stroke-width="0.5"/>
+  <line x1="265" y1="182" x2="400" y2="268" stroke="#999" stroke-width="0.5"/>
+
+  <!-- 내부→리프 연결선 오른쪽 -->
+  <line x1="645" y1="182" x2="550" y2="268" stroke="#999" stroke-width="0.5"/>
+  <line x1="690" y1="182" x2="700" y2="268" stroke="#999" stroke-width="0.5"/>
+  <line x1="735" y1="182" x2="850" y2="268" stroke="#999" stroke-width="0.5"/>
+
+  <!-- 리프 노드 라벨 -->
+  <text x="60" y="300" font-size="12" fill="#888" text-anchor="start">리프 노드</text>
+
+  <!-- 리프 노드들 -->
+  <!-- 리프1: 1, 5, 8 -->
+  <rect x="50" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="100" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">1, 5, 8</text>
+  <line x1="50" y1="308" x2="150" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="100" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- 리프2: 10, 15 -->
+  <rect x="200" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="250" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">10, 15</text>
+  <line x1="200" y1="308" x2="300" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="250" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- 리프3: 20, 25 -->
+  <rect x="350" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="400" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">20, 25</text>
+  <line x1="350" y1="308" x2="450" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="400" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- 리프4: 30, 35 -->
+  <rect x="500" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="550" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">30, 35</text>
+  <line x1="500" y1="308" x2="600" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="550" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- 리프5: 50, 60 -->
+  <rect x="650" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="700" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">50, 60</text>
+  <line x1="650" y1="308" x2="750" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="700" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- 리프6: 80, 85 -->
+  <rect x="800" y="268" width="100" height="68" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+  <text x="850" y="293" font-size="14" font-weight="600" fill="#085041" text-anchor="middle">80, 85</text>
+  <line x1="800" y1="308" x2="900" y2="308" stroke="#0F6E56" stroke-width="0.3" opacity="0.3"/>
+  <text x="850" y="326" font-size="10" fill="#0F6E56" text-anchor="middle">데이터 참조</text>
+
+  <!-- next 포인터 화살표 -->
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <line x1="150" y1="302" x2="198" y2="302" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <line x1="300" y1="302" x2="348" y2="302" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <line x1="450" y1="302" x2="498" y2="302" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <line x1="600" y1="302" x2="648" y2="302" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <line x1="750" y1="302" x2="798" y2="302" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+
+  <!-- next 포인터 라벨 -->
+  <text x="460" y="378" font-size="12" fill="#0F6E56" text-anchor="middle">next 포인터 (리프 노드 간 연결 → 범위 검색 지원)</text>
+
+  <!-- 하단 범례 -->
+  <rect x="120" y="420" width="680" height="56" rx="8" fill="#f8f8f6" stroke="#e0e0dc" stroke-width="0.5"/>
+
+  <rect x="145" y="440" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="167" y="451" font-size="12" fill="#555">루트: 탐색 시작점</text>
+
+  <rect x="305" y="440" width="14" height="14" rx="3" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="327" y="451" font-size="12" fill="#555">내부: 경로 분기</text>
+
+  <rect x="455" y="440" width="14" height="14" rx="3" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="477" y="451" font-size="12" fill="#555">리프: ID key + 데이터</text>
+
+  <line x1="625" y1="447" x2="649" y2="447" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+  <text x="657" y="451" font-size="12" fill="#555">next 포인터</text>
+
+</svg>

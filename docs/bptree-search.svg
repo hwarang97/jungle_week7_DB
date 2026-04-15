@@ -1,0 +1,161 @@
+<svg width="960" viewBox="0 0 960 520" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff;">
+
+  <!-- 검색 키 표시 -->
+  <rect x="200" y="20" width="160" height="32" rx="16" fill="#FFF3E0" stroke="#EF9F27" stroke-width="0.8"/>
+  <text x="280" y="41" font-size="13" font-weight="500" fill="#854F0B" text-anchor="middle">검색할 key: 45</text>
+
+  <!-- ===== 왼쪽: B+ Tree 구조 ===== -->
+
+  <!-- 루트 노드 [30 | 70] -->
+  <rect x="180" y="80" width="160" height="42" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.2"/>
+  <text x="220" y="106" font-size="14" font-weight="600" fill="#0C447C" text-anchor="middle">30</text>
+  <line x1="260" y1="80" x2="260" y2="122" stroke="#185FA5" stroke-width="0.4" opacity="0.4"/>
+  <text x="300" y="106" font-size="14" font-weight="600" fill="#0C447C" text-anchor="middle">70</text>
+
+  <!-- 탐색 시작 라벨 -->
+  <text x="130" y="95" font-size="11" fill="#185FA5" font-weight="500" text-anchor="end">탐색 시작 →</text>
+
+  <!-- 루트 비교 설명 -->
+  <text x="380" y="95" font-size="11" fill="#185FA5" font-weight="500" text-anchor="start">30 ≤ 45 &lt; 70</text>
+  <text x="380" y="112" font-size="11" fill="#185FA5" font-weight="500" text-anchor="start">→ 가운데 자식</text>
+
+  <!-- 루트→내부 연결선 (비활성) -->
+  <line x1="210" y1="122" x2="100" y2="185" stroke="#ddd" stroke-width="0.6"/>
+  <line x1="310" y1="122" x2="410" y2="185" stroke="#ddd" stroke-width="0.6"/>
+
+  <!-- 루트→내부 연결선 (활성 경로) -->
+  <line x1="260" y1="122" x2="260" y2="185" stroke="#185FA5" stroke-width="2"/>
+  <polygon points="260,185 256,177 264,177" fill="#185FA5"/>
+
+  <!-- 내부 노드 왼쪽 [10 | 20] (비활성) -->
+  <rect x="40" y="190" width="120" height="40" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.6"/>
+  <text x="70" y="215" font-size="13" fill="#bbb" text-anchor="middle">10</text>
+  <line x1="100" y1="190" x2="100" y2="230" stroke="#ddd" stroke-width="0.3"/>
+  <text x="130" y="215" font-size="13" fill="#bbb" text-anchor="middle">20</text>
+
+  <!-- 내부 노드 가운데 [40 | 55] (활성) -->
+  <rect x="195" y="190" width="130" height="40" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.2"/>
+  <text x="228" y="215" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">40</text>
+  <line x1="260" y1="190" x2="260" y2="230" stroke="#534AB7" stroke-width="0.4" opacity="0.4"/>
+  <text x="293" y="215" font-size="14" font-weight="600" fill="#3C3489" text-anchor="middle">55</text>
+
+  <!-- 내부 노드 오른쪽 [80 | 90] (비활성) -->
+  <rect x="360" y="190" width="120" height="40" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.6"/>
+  <text x="390" y="215" font-size="13" fill="#bbb" text-anchor="middle">80</text>
+  <line x1="420" y1="190" x2="420" y2="230" stroke="#ddd" stroke-width="0.3"/>
+  <text x="450" y="215" font-size="13" fill="#bbb" text-anchor="middle">90</text>
+
+  <!-- 내부 비교 설명 -->
+  <text x="380" y="210" font-size="11" fill="#534AB7" font-weight="500" text-anchor="start">40 ≤ 45 &lt; 55</text>
+  <text x="380" y="226" font-size="11" fill="#534AB7" font-weight="500" text-anchor="start">→ 가운데 자식</text>
+
+  <!-- 내부→리프 연결선 (비활성) -->
+  <line x1="215" y1="230" x2="120" y2="310" stroke="#ddd" stroke-width="0.5"/>
+  <line x1="305" y1="230" x2="380" y2="310" stroke="#ddd" stroke-width="0.5"/>
+
+  <!-- 내부→리프 연결선 (활성) -->
+  <line x1="260" y1="230" x2="260" y2="310" stroke="#185FA5" stroke-width="2"/>
+  <polygon points="260,310 256,302 264,302" fill="#185FA5"/>
+
+  <!-- 리프 노드 왼쪽 (비활성) -->
+  <rect x="55" y="315" width="100" height="38" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.6"/>
+  <text x="105" y="339" font-size="12" fill="#bbb" text-anchor="middle">30, 35</text>
+
+  <!-- 리프 노드 가운데 (활성 - 목표) -->
+  <rect x="210" y="315" width="100" height="38" rx="6" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+  <text x="240" y="339" font-size="13" font-weight="600" fill="#085041" text-anchor="middle">40</text>
+  <line x1="260" y1="315" x2="260" y2="353" stroke="#0F6E56" stroke-width="0.3" opacity="0.4"/>
+  <text x="280" y="339" font-size="13" font-weight="700" fill="#185FA5" text-anchor="middle">45</text>
+
+  <!-- 리프 노드 오른쪽 (비활성) -->
+  <rect x="365" y="315" width="100" height="38" rx="6" fill="#f8f8f6" stroke="#ddd" stroke-width="0.6"/>
+  <text x="415" y="339" font-size="12" fill="#bbb" text-anchor="middle">55, 60</text>
+
+  <!-- next 포인터 -->
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <line x1="155" y1="334" x2="208" y2="334" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+  <line x1="310" y1="334" x2="363" y2="334" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+
+  <!-- 리프 도착 라벨 -->
+  <text x="260" y="375" font-size="11" fill="#0F6E56" font-weight="500" text-anchor="middle">리프 도착 → key 45 발견!</text>
+
+  <!-- 결과 반환 -->
+  <rect x="210" y="390" width="100" height="28" rx="14" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.6"/>
+  <text x="260" y="409" font-size="12" font-weight="500" fill="#085041" text-anchor="middle">value 반환</text>
+
+  <!-- ===== 오른쪽: 의사코드 ===== -->
+
+  <rect x="560" y="80" width="360" height="310" rx="10" fill="#f8f8f6" stroke="#e0e0dc" stroke-width="0.8"/>
+
+  <!-- 의사코드 제목 -->
+  <text x="740" y="110" font-size="14" font-weight="600" fill="#333" text-anchor="middle">search 의사코드</text>
+  <line x1="580" y1="120" x2="900" y2="120" stroke="#e0e0dc" stroke-width="0.6"/>
+
+  <!-- 의사코드 내용 -->
+  <text x="590" y="150" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="590" dy="0" fill="#185FA5" font-weight="600">function</tspan>
+    <tspan fill="#333"> search(tree, key):</tspan>
+  </text>
+
+  <text x="590" y="180" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="610" dy="0">node = tree.root</tspan>
+  </text>
+
+  <!-- 라인 간격 -->
+  <text x="590" y="215" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="610" dy="0" fill="#185FA5" font-weight="600">while</tspan>
+    <tspan fill="#333"> node가 리프가 아닌 동안:</tspan>
+  </text>
+
+  <text x="590" y="245" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="630" dy="0" fill="#888">// separator key와 비교</tspan>
+  </text>
+
+  <text x="590" y="270" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="630" dy="0">node = 적절한 자식 선택</tspan>
+  </text>
+
+  <text x="590" y="310" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="610" dy="0" fill="#888">// 리프에서 key 비교</tspan>
+  </text>
+
+  <text x="590" y="340" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="610" dy="0" fill="#185FA5" font-weight="600">if</tspan>
+    <tspan fill="#333"> key 일치:</tspan>
+    <tspan fill="#0F6E56" font-weight="600"> return value</tspan>
+  </text>
+
+  <text x="590" y="370" font-size="13" fill="#555" font-family="'SF Mono', 'Consolas', monospace">
+    <tspan x="610" dy="0" fill="#185FA5" font-weight="600">else</tspan>
+    <tspan fill="#333">:</tspan>
+    <tspan fill="#E24B4A" font-weight="600"> return NULL</tspan>
+  </text>
+
+  <!-- 시간복잡도 -->
+  <rect x="560" y="410" width="360" height="42" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.6"/>
+  <text x="740" y="428" font-size="12" font-weight="500" fill="#0C447C" text-anchor="middle">시간복잡도: O(log n)</text>
+  <text x="740" y="445" font-size="11" fill="#185FA5" text-anchor="middle">100만 건, order=128 → 최대 3~4회 노드 방문</text>
+
+  <!-- 하단 범례 -->
+  <rect x="80" y="465" width="800" height="40" rx="8" fill="#f8f8f6" stroke="#e0e0dc" stroke-width="0.5"/>
+
+  <rect x="110" y="478" width="12" height="12" rx="2" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="130" y="489" font-size="11" fill="#555">활성 경로</text>
+
+  <rect x="250" y="478" width="12" height="12" rx="2" fill="#f8f8f6" stroke="#ddd" stroke-width="0.5"/>
+  <text x="270" y="489" font-size="11" fill="#555">비활성 노드</text>
+
+  <line x1="400" y1="484" x2="424" y2="484" stroke="#185FA5" stroke-width="2"/>
+  <text x="432" y="489" font-size="11" fill="#555">탐색 경로</text>
+
+  <line x1="540" y1="484" x2="564" y2="484" stroke="#1D9E75" stroke-width="0.8" marker-end="url(#arrowhead)"/>
+  <text x="572" y="489" font-size="11" fill="#555">next 포인터</text>
+
+  <rect x="680" y="478" width="12" height="12" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="700" y="489" font-size="11" fill="#555">검색 결과 리프</text>
+
+</svg>

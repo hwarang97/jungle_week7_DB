@@ -4,7 +4,13 @@
 
 #include "../src/bptree.h"
 
-#define SEARCH_SAMPLES 10000
+#ifndef SEARCH_SAMPLES
+#define SEARCH_SAMPLES 1000
+#endif
+
+#ifndef BPTREE_SCALE_ROW_COUNTS
+#define BPTREE_SCALE_ROW_COUNTS 1000, 5000, 10000
+#endif
 
 static const char *ansi_reset(void)
 {
@@ -166,7 +172,7 @@ static void run_case(int row_count)
 
 int main(void)
 {
-    int row_counts[] = {10000, 50000, 200000};
+    int row_counts[] = {BPTREE_SCALE_ROW_COUNTS};
     int i;
 
     printf("%s%s[bench-bptree-scale]%s current_bptree_order=%s%d%s samples=%s%d%s\n",
