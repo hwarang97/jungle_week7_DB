@@ -34,7 +34,7 @@ python3 server.py
 
 ## 2. B+ Tree 구조 설명
 
-### 3.1 트리 구조
+### 2.1 트리 구조
 
 ![B+ Tree structure](docs/bptree-structure.svg)
 
@@ -43,7 +43,7 @@ python3 server.py
 - 리프 노드는 실제 key와 value를 저장합니다.
 - 리프 노드는 `next` 포인터로 연결되어 있어 순차 탐색에 유리합니다.
 
-### 3.2 insert와 split 과정
+### 2.2 insert와 split 과정
 
 ![B+ Tree insert and split](docs/bptree-insert-split.svg)
 
@@ -69,35 +69,6 @@ python3 server.py
 `SELECT WHERE id = ?` 실행 시 실제 조회 경로에서 인덱스를 사용하게 만드는 것입니다.
 
 ![Index vs linear comparison](docs/bptree-index-vs-linear.svg)
-
-## 3.2 왜 `id` + B+ Tree를 선택했는가
-
-`SELECT WHERE id = ?` 는 이번 과제에서 가장 중요한 조회 패턴입니다.  
-`id` 는 row를 잘 구분하는 key이고, B+ Tree는 equality 조회뿐 아니라 정렬된 구조와 리프 연결을 바탕으로 범위 탐색까지 확장하기 좋은 형태입니다.
-
-B+ Tree 인덱스는 어떤 컬럼에도 적용할 수 있지만, 이번 프로젝트에서는 과제 요구사항에 따라 `id` 컬럼에만 적용하고 `name` 은 비교 대상으로 선형 탐색을 유지했습니다.
-
-| 판단 기준 | 이번 프로젝트의 선택 |
-|---|---|
-| 가장 중요한 쿼리 패턴 | `SELECT ... WHERE id = ?` |
-| 인덱스 대상 컬럼 | `id` |
-| 자료구조 | B+ Tree |
-| 비교 전략 | `id` 는 B+ Tree 인덱스, `name` 은 선형 탐색으로 두어 benchmark 차이를 명확히 보이도록 했습니다. |
-
-## 3.3 실무 관점과 트레이드오프
-
-기본 과제를 구현한 뒤 "`id`에 B+ Tree를 적용한 선택이 항상 최선일까?"라는 궁금증이 생겼습니다.  
-찾아보니 실제 환경에서는 조회 패턴에 따라 서로 다른 인덱스 구조가 사용되고 있었습니다.
-
-| 인덱스 | 강점 | 약점 |
-|---|---|---|
-| B+ Tree | 가장 범용적이며 `=`, `<`, `>`, `BETWEEN`, `ORDER BY`에 넓게 대응할 수 있습니다. | 쓰기 시 split과 유지 비용이 듭니다. |
-| Hash Index | 정확히 같은 값 `=` 조회에 강할 수 있습니다. | 범위 검색과 정렬에는 약합니다. |
-| Bitmap Index | 값 종류가 적은 컬럼의 분석성 질의에 유리할 수 있습니다. | 갱신이 잦은 환경에서는 유지 비용이 부담될 수 있습니다. |
-| Full-text Index | 문자열 포함 검색에 특화되어 있습니다. | 일반적인 정렬/범위 탐색 용도에는 적합하지 않습니다. |
-
-실무에서는 자주 조회되는 조건, 선택도, 정렬/범위 탐색 여부, 유지 비용을 함께 보고 인덱스를 설계합니다.  
-이번 프로젝트는 `WHERE id = ?` 경로를 실제 SQL 처리기에 연결하는 것이 핵심이기 때문에, 범용성이 높은 B+ Tree를 선택했습니다.
 
 ## 4. 벤치마크 결과
 
@@ -160,12 +131,20 @@ make bench-bptree-scale
 - SQL 인덱스 연동 테스트
 - auto-id 생성 및 증가 테스트
 - `WHERE id = ?` fast path / 비인덱스 fallback 테스트
+- 빈 트리 검색, 존재하지 않는 키 검색 테스트
+- 리프 경계 key 탐색, 가운데/오른쪽 리프 선택 테스트
+- split 이후 search 유지, 구조 불변식 유지 테스트
+- 여러 insert 패턴 이후 search / leaf chain 유지 테스트
+- `INT_MAX` 경계값 search 테스트
+- `INT_MAX` 경계값 구조 불변식 테스트
 
 ### 5.2 실행 결과 예시
 
 ```text
-Structure tests passed! (6/6)
-Search tests passed! (11/11)
+[SEARCH 12/12] int max boundary key search ... PASS
+Search tests passed! (12/12)
+[STRUCTURE 7/7] int max key keeps search and invariants ... PASS
+Structure tests passed! (7/7)
 197 passed, 0 failed
 [EXECUTOR TESTS] passed
 All INSERT storage tests passed.
@@ -181,6 +160,10 @@ All UPDATE storage tests passed.
 make test
 make test-sqlparser
 make test_sql_index_integration
+make test_search
+./test_search
+make test_structure
+./test_structure
 ```
 
 ### 5.4 테스트 요약
@@ -192,6 +175,12 @@ make test_sql_index_integration
 - SQL 인덱스 통합 테스트: `passed`
 - auto-id 생략 `INSERT` 테스트: `passed`
 - auto-id 연속 증가 테스트: `passed`
+- 빈 트리 검색 테스트: `passed`
+- 존재하지 않는 key 검색 테스트: `passed`
+- 리프 경계 key 탐색 테스트: `passed`
+- split 이후 구조 불변식 테스트: `passed`
+- `INT_MAX` 경계값 search 테스트: `passed`
+- `INT_MAX` 경계값 구조 불변식 테스트: `passed`
 
 ## 6. 프로젝트 구조
 
@@ -251,7 +240,36 @@ jungle_week7_DB/
 - `server.py`: 브라우저 요청을 받아 `sqlparser`와 benchmark 타깃을 실행하는 로컬 HTTP 서버입니다.
 - `docs/bptree-search-simulator.html`: B+ Tree 탐색 흐름을 시각적으로 확인하는 보조 자료입니다.
 
-## 7. 향후 확장 방향
+## 7. 왜 `id` + B+ Tree를 선택했는가
+
+`SELECT WHERE id = ?` 는 이번 과제에서 가장 중요한 조회 패턴입니다.  
+`id` 는 row를 잘 구분하는 key이고, B+ Tree는 equality 조회뿐 아니라 정렬된 구조와 리프 연결을 바탕으로 범위 탐색까지 확장하기 좋은 형태입니다.
+
+B+ Tree 인덱스는 어떤 컬럼에도 적용할 수 있지만, 이번 프로젝트에서는 과제 요구사항에 따라 `id` 컬럼에만 적용하고 `name` 은 비교 대상으로 선형 탐색을 유지했습니다.
+
+| 판단 기준 | 이번 프로젝트의 선택 |
+|---|---|
+| 가장 중요한 쿼리 패턴 | `SELECT ... WHERE id = ?` |
+| 인덱스 대상 컬럼 | `id` |
+| 자료구조 | B+ Tree |
+| 비교 전략 | `id` 는 B+ Tree 인덱스, `name` 은 선형 탐색으로 두어 benchmark 차이를 명확히 보이도록 했습니다. |
+
+## 8. 실무 관점과 트레이드오프
+
+기본 과제를 구현한 뒤 "`id`에 B+ Tree를 적용한 선택이 항상 최선일까?"라는 궁금증이 생겼습니다.  
+찾아보니 실제 환경에서는 조회 패턴에 따라 서로 다른 인덱스 구조가 사용되고 있었습니다.
+
+| 인덱스 | 강점 | 약점 |
+|---|---|---|
+| B+ Tree | 가장 범용적이며 `=`, `<`, `>`, `BETWEEN`, `ORDER BY`에 넓게 대응할 수 있습니다. | 쓰기 시 split과 유지 비용이 듭니다. |
+| Hash Index | 정확히 같은 값 `=` 조회에 강할 수 있습니다. | 범위 검색과 정렬에는 약합니다. |
+| Bitmap Index | 값 종류가 적은 컬럼의 분석성 질의에 유리할 수 있습니다. | 갱신이 잦은 환경에서는 유지 비용이 부담될 수 있습니다. |
+| Full-text Index | 문자열 포함 검색에 특화되어 있습니다. | 일반적인 정렬/범위 탐색 용도에는 적합하지 않습니다. |
+
+실무에서는 자주 조회되는 조건, 선택도, 정렬/범위 탐색 여부, 유지 비용을 함께 보고 인덱스를 설계합니다.  
+이번 프로젝트는 `WHERE id = ?` 경로를 실제 SQL 처리기에 연결하는 것이 핵심이기 때문에, 범용성이 높은 B+ Tree를 선택했습니다.
+
+## 9. 향후 확장 방향
 
 - 범위 검색, delete, 다중 인덱스 지원으로 확장할 수 있습니다.
 - 메모리 기반 구조를 디스크 페이지 기반 구조로 확장하면 실제 DBMS에 더 가까운 형태로 발전시킬 수 있습니다.
