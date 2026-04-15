@@ -16,6 +16,7 @@ make bench
 make test-sqlparser
 make bench-sql-index
 make bench-bptree-scale
+make bench-index-graph
 make sqlparser
 python3 server.py
 ```
@@ -26,11 +27,12 @@ python3 server.py
 - `make test-sqlparser`: SQL parser, executor, storage, 인덱스 연동 테스트를 실행합니다.
 - `make bench-sql-index`: 기본 SQL 인덱스 benchmark를 실행합니다.
 - `make bench-bptree-scale`: 기본 B+ Tree scale benchmark를 실행합니다.
+- `make bench-index-graph`: full scan, B-Tree, B+ Tree를 같은 입력 크기로 비교하는 benchmark를 실행합니다.
 - `make sqlparser`: SQL 처리기 실행 파일을 빌드합니다.
 - `python3 server.py`: 브라우저에서 SQL 실행과 benchmark 버튼을 사용할 수 있는 로컬 서버를 실행합니다.
 
-현재 B+ Tree 차수는 `BPTREE_ORDER = 4`로 설정되어 있습니다.
-기본 benchmark는 빠른 데모를 위해 작은 row count와 sample 수를 사용하며, 필요하면 compile-time macro로 범위를 확장할 수 있습니다.
+현재 기본 B+ Tree 차수는 `BPTREE_ORDER = 64`로 설정되어 있습니다.
+기본 benchmark는 `10,000 / 100,000 / 1,000,000` rows를 기준으로 동작하며, 필요하면 compile-time macro와 Make 변수로 입력 크기를 조정할 수 있습니다.
 
 ## 2. B+ Tree 구조 설명
 
@@ -76,9 +78,9 @@ python3 server.py
 
 | 데이터 건수 | id 검색 시간 (B+ Tree) | name 검색 시간 (선형) | 배율 차이 |
 |---|---:|---:|---:|
-| 20 | 1.211ms | 2.276ms | 1.88x |
-| 80 | 1.183ms | 1.691ms | 1.43x |
-| 160 | 1.143ms | 2.545ms | 2.23x |
+| 10,000 | 24.850ms | 199.026ms | 8.01x |
+| 100,000 | 10.362ms | 1865.738ms | 180.05x |
+| 1,000,000 | 8.868ms | 17889.915ms | 2017.36x |
 
 ![SQL benchmark graph](docs/benchmark-sql-index.svg)
 
@@ -86,11 +88,11 @@ python3 server.py
 
 - `WHERE id = ?` 는 B+ Tree 인덱스를 사용해 일정한 시간 안에 조회됩니다.
 - `WHERE name = ?` 는 선형 탐색이므로 같은 조건에서도 인덱스 조회보다 느리게 측정됩니다.
-- 현재 기본 benchmark는 `20 / 80 / 160` rows, `20`회 lookup 기준으로 빠르게 비교할 수 있도록 구성되어 있습니다.
-- 기본 benchmark에서도 `name` 조회는 `id` 조회보다 약 `1.43배 ~ 2.23배` 느리게 나타났습니다.
+- 현재 기본 benchmark는 `10,000 / 100,000 / 1,000,000` rows, `500`회 `id` lookup, `500`회 `name` lookup 기준으로 실행됩니다.
+- 데이터가 커질수록 `id` 인덱스 조회와 `name` 선형 탐색의 차이가 빠르게 벌어졌고, `1,000,000` rows에서는 약 `2017배` 차이까지 확인했습니다.
 - 벤치마크 실행 시 현재 차수(`order`)와 row 수가 함께 출력되도록 구성했습니다.
 
-\* 기본 SQL benchmark는 `ID_LOOKUPS=20`, `NAME_LOOKUPS=20`, `SQL_BENCH_ROW_COUNTS=20, 80, 160` 설정을 사용합니다.  
+\* 기본 SQL benchmark는 `ID_LOOKUPS=500`, `NAME_LOOKUPS=500`, `SQL_BENCH_ROW_COUNTS=10000, 100000, 1000000` 설정을 사용합니다.  
 \* fixture는 `storage_insert()`를 사용해 row를 채우고, 이후 `WHERE id = ?` 와 `WHERE name = ?` 조회를 반복 측정합니다.
 
 ### 4.2 벤치마크 실행 예시
@@ -98,9 +100,15 @@ python3 server.py
 ```bash
 make bench-sql-index
 make bench-bptree-scale
+make bench-index-graph
 ```
 
-더 큰 benchmark가 필요하면 `benchmark/bench_sql_index.c`와 `benchmark/bench_bptree_scale.c`의 compile-time macro를 조정해 row 수와 sample 수를 확장할 수 있습니다.
+입력 크기를 바꿔 확인하고 싶다면 아래처럼 실행할 수 있습니다.
+
+```bash
+make bench-index-graph ROWS=1000000 REQUESTS=5000
+make bench-sql-index CFLAGS="-DBPTREE_ORDER=128"
+```
 
 ### 4.3 B+ Tree 자체 확장성 확인
 
@@ -119,6 +127,7 @@ make bench-bptree-scale
 - `bptree search`는 row 수가 커져도 매우 낮은 시간으로 유지됩니다.
 - `linear search`는 row 수 증가에 따라 더 가파르게 증가합니다.
 - `bptree insert`는 row 저장과 트리 갱신이 함께 일어나므로 search보다 비용이 크지만, 현재 기본 benchmark 범위에서는 완만하게 증가합니다.
+- `bench-index-graph` 기준 `1,000,000` rows, `5,000` requests에서는 `SELECT` 경로가 full scan `1807.790ms`, B-Tree index `1.381ms`, B+ Tree index `1.324ms`로 측정되었습니다.
 
 ## 5. 테스트 결과
 
@@ -207,6 +216,7 @@ jungle_week7_DB/
 │   └── test_sql_index_integration.c
 ├── benchmark/
 │   ├── bench_search.c
+│   ├── bench_index_graph.c
 │   ├── bench_sql_index.c
 │   └── bench_bptree_scale.c
 ├── index.html
@@ -235,6 +245,7 @@ jungle_week7_DB/
 - `tests/test_storage_select_result.c`: SQL `SELECT` 결과를 검증합니다.
 - `tests/test_sql_index_integration.c`: SQL 인덱스 연동을 검증합니다.
 - `benchmark/bench_sql_index.c`: `id` 인덱스 조회와 비인덱스 조회 성능을 비교합니다.
+- `benchmark/bench_index_graph.c`: full scan, B-Tree, B+ Tree를 같은 요청 수로 비교해 그래프용 수치를 만듭니다.
 - `benchmark/bench_bptree_scale.c`: 데이터 증가에 따른 B+ Tree 성능을 확인합니다.
 - `index.html`: SQL 실행과 benchmark 버튼을 제공하는 브라우저 UI입니다.
 - `server.py`: 브라우저 요청을 받아 `sqlparser`와 benchmark 타깃을 실행하는 로컬 HTTP 서버입니다.
