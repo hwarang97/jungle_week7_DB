@@ -1,75 +1,38 @@
-CC      = gcc
-CFLAGS  = -Wall -Wextra -Wpedantic -g -I./include
-SRC_DIR = src
-TEST_DIR = tests
-BUILD_DIR = build
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -I./src -I./include
 
-SRCS    = $(SRC_DIR)/main.c \
-          $(SRC_DIR)/parser.c \
-          $(SRC_DIR)/ast_print.c \
-          $(SRC_DIR)/json_out.c \
-          $(SRC_DIR)/sql_format.c \
-          $(SRC_DIR)/executor.c \
-          $(SRC_DIR)/storage.c
+TARGET = bptree
+TEST_TARGET = test_bptree
+BENCH_TARGET = bench_search
 
-TEST_SRCS = $(TEST_DIR)/test_parser.c \
-            $(TEST_DIR)/test_executor.c \
-            $(SRC_DIR)/parser.c \
-            $(SRC_DIR)/ast_print.c \
-            $(SRC_DIR)/json_out.c \
-            $(SRC_DIR)/sql_format.c \
-            $(SRC_DIR)/executor.c \
-            $(SRC_DIR)/storage.c
+SQL_SRCS = src/parser.c \
+	src/ast_print.c \
+	src/json_out.c \
+	src/sql_format.c \
+	src/executor.c \
+	src/storage.c \
+	src/sql_processor.c
 
-STORAGE_TEST_TARGETS = test_storage_insert test_storage_delete test_storage_update test_storage_select_result
-STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c
-SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c
+BPTREE_SRCS = src/main.c src/bptree.c
 
-TARGET  = sqlparser
-TEST_TARGET = test_runner
-
-.PHONY: all clean test valgrind test_storage_all
+.PHONY: all test bench clean
 
 all: $(TARGET)
 
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $@ $^
+$(TARGET): $(BPTREE_SRCS) $(SQL_SRCS)
+	$(CC) $(CFLAGS) -o $@ $(BPTREE_SRCS) $(SQL_SRCS)
 
-$(TEST_TARGET): $(TEST_SRCS)
-	$(CC) $(CFLAGS) -o $(TEST_TARGET) $^
-
-test_storage_insert: $(TEST_DIR)/test_storage_insert.c $(STORAGE_TEST_DEPS)
-	$(CC) $(CFLAGS) -o $@ $^
-	./$@
-
-test_storage_delete: $(TEST_DIR)/test_storage_delete.c $(STORAGE_TEST_DEPS)
-	$(CC) $(CFLAGS) -o $@ $^
-	./$@
-
-test_storage_update: $(TEST_DIR)/test_storage_update.c $(STORAGE_TEST_DEPS)
-	$(CC) $(CFLAGS) -o $@ $^
-	./$@
-
-test_storage_select_result: $(TEST_DIR)/test_storage_select_result.c $(SELECT_RESULT_DEPS)
-	$(CC) $(CFLAGS) -o $@ $^
-	./$@
-
-test_storage_all: $(STORAGE_TEST_TARGETS)
+$(TEST_TARGET): test/test_bptree.c src/bptree.c
+	$(CC) $(CFLAGS) -o $@ test/test_bptree.c src/bptree.c
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
-	$(MAKE) test_storage_all
 
-valgrind: $(TARGET)
-	valgrind --leak-check=full --error-exitcode=1 ./$(TARGET) $(SQL)
+$(BENCH_TARGET): benchmark/bench_search.c src/bptree.c
+	$(CC) $(CFLAGS) -o $@ benchmark/bench_search.c src/bptree.c
+
+bench: $(BENCH_TARGET)
+	./$(BENCH_TARGET)
 
 clean:
-	rm -f $(TARGET) $(TEST_TARGET) $(STORAGE_TEST_TARGETS)
-	rm -f data/*.csv data/*.schema
-	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp
-
-run:
-	./$(TARGET) $(SQL)
-
-json:
-	./$(TARGET) $(SQL) --json
+	rm -f $(TARGET) $(TEST_TARGET) $(BENCH_TARGET)
