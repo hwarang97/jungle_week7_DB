@@ -77,24 +77,102 @@ static void bptree_build_leaf_temp_arrays(BPTreeNode *leaf, int key, void *value
     }
 }
 
+/* 부모 노드 안에서 특정 child 가 몇 번째 자식인지 찾는다. */
+static int bptree_find_child_index(BPTreeNode *parent, BPTreeNode *child)
+{
+    int index;
+
+    if (!parent || !child) {
+        return -1;
+    }
+
+    for (index = 0; index <= parent->key_count; index++) {
+        if (parent->children[index] == child) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+/* split 후 오른쪽 child 가 새로 생겼을 때 부모에 key 와 child 를 반영한다.
+ * 현재 단계에서는 부모가 꽉 차지 않은 경우까지만 지원한다.
+ */
+static int bptree_insert_into_parent(BPTree *tree, BPTreeNode *left,
+                                     int promoted_key, BPTreeNode *right)
+{
+    BPTreeNode *parent;
+    BPTreeNode *new_root;
+    int child_index;
+    int move;
+
+    if (!tree || !left || !right) {
+        return -1;
+    }
+
+    parent = left->parent;
+    if (!parent) {
+        new_root = bptree_create_node(0);
+        if (!new_root) {
+            return -1;
+        }
+
+        new_root->keys[0] = promoted_key;
+        new_root->children[0] = left;
+        new_root->children[1] = right;
+        new_root->key_count = 1;
+
+        left->parent = new_root;
+        right->parent = new_root;
+        tree->root = new_root;
+        return 0;
+    }
+
+    if (parent->key_count >= BPTREE_MAX_KEYS) {
+        return -1;
+    }
+
+    child_index = bptree_find_child_index(parent, left);
+    if (child_index < 0) {
+        return -1;
+    }
+
+    for (move = parent->key_count; move > child_index; move--) {
+        parent->keys[move] = parent->keys[move - 1];
+    }
+
+    for (move = parent->key_count + 1; move > child_index + 1; move--) {
+        parent->children[move] = parent->children[move - 1];
+    }
+
+    parent->keys[child_index] = promoted_key;
+    parent->children[child_index + 1] = right;
+    parent->key_count++;
+    right->parent = parent;
+    return 0;
+}
+
 /* 리프 split 의 첫 단계 구현.
- * 현재는 "리프가 루트일 때" split 해서 새 루트를 만드는 경우까지 지원한다.
+ * 현재는:
+ * 1. 루트가 리프일 때 split
+ * 2. 부모가 여유 있는 리프 split
+ * 까지 지원한다.
  */
 static int bptree_split_leaf(BPTree *tree, BPTreeNode *leaf, int key, void *value)
 {
     int temp_keys[BPTREE_ORDER];
     void *temp_values[BPTREE_ORDER];
     BPTreeNode *new_leaf;
-    BPTreeNode *new_root;
     int split_index = BPTREE_ORDER / 2;
+    int promoted_key;
     int i;
 
     if (!tree || !leaf || !leaf->is_leaf) {
         return -1;
     }
 
-    if (leaf->parent != NULL) {
-        /* 부모가 있는 일반 리프 split 은 다음 단계에서 구현한다. */
+    if (leaf->parent != NULL && leaf->parent->key_count >= BPTREE_MAX_KEYS) {
+        /* 내부 노드 split 은 아직 다음 단계에서 구현한다. */
         return -1;
     }
 
@@ -121,22 +199,14 @@ static int bptree_split_leaf(BPTree *tree, BPTreeNode *leaf, int key, void *valu
     new_leaf->next = leaf->next;
     leaf->next = new_leaf;
     new_leaf->parent = leaf->parent;
-
-    new_root = bptree_create_node(0);
-    if (!new_root) {
-        free(new_leaf);
-        return -1;
+    promoted_key = new_leaf->keys[0];
+    if (tree->first_leaf == NULL || tree->first_leaf == leaf) {
+        tree->first_leaf = leaf;
     }
 
-    new_root->keys[0] = new_leaf->keys[0];
-    new_root->children[0] = leaf;
-    new_root->children[1] = new_leaf;
-    new_root->key_count = 1;
-
-    leaf->parent = new_root;
-    new_leaf->parent = new_root;
-    tree->root = new_root;
-    tree->first_leaf = leaf;
+    if (bptree_insert_into_parent(tree, leaf, promoted_key, new_leaf) != 0) {
+        return -1;
+    }
 
     return 0;
 }
@@ -263,11 +333,13 @@ void *bptree_search(BPTree *tree, int key)
     return NULL;
 }
 
-/* insert 는 다음 사이클에서 구현한다.
- * 현재 단계에서는:
- * 1. key 가 들어갈 리프를 찾고
- * 2. 리프가 꽉 차지 않았으면 정렬 순서를 유지하며 삽입한다.
- * 3. 현재 단계에서는 루트 리프 split 까지 구현한다.
+/* insert 의 현재 구현 범위.
+ * 1. key 가 들어갈 리프를 찾는다.
+ * 2. 리프에 자리가 있으면 정렬 순서를 유지하며 바로 넣는다.
+ * 3. 리프가 꽉 찼으면 두 리프로 나눈다.
+ * 4. 부모가 없으면 새 루트를 만들고,
+ *    부모에 자리가 있으면 오른쪽 리프와 경계 key 를 부모에 반영한다.
+ * 5. 내부 노드 split 은 아직 다음 단계에서 구현한다.
  */
 int bptree_insert(BPTree *tree, int key, void *value)
 {

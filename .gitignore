@@ -6,7 +6,9 @@ build/
 bptree
 test_bptree
 test_structure
+test_insert
 test_search
+test_edge_cases
 bench_search
 sqlparser
 test_runner

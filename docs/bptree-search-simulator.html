@@ -493,7 +493,8 @@
       <h1>B+ Tree Step Simulator</h1>
       <p>
         현재 `feat/cycle-jiun` 브랜치의 구현 단계를 사람 눈으로 확인하기 위한 시뮬레이터입니다.
-        `search`, 리프 정렬 삽입, 루트 리프 split 이 현재 코드와 같은 규칙으로 단계별로 진행됩니다.
+        `search`, 리프 정렬 삽입, 루트 리프 split, 부모에 자리가 있을 때의 일반 리프 split 이
+        현재 코드와 같은 규칙으로 단계별로 진행됩니다.
       </p>
     </section>
 
@@ -605,7 +606,7 @@
           지금 구현 단계 기준으로:
           `search`는 3리프 예시 트리에서 동작하고,
           `insert`는 단일 리프 정렬 삽입을,
-          `split`은 루트가 리프일 때만 새 루트를 만드는 흐름을 보여줍니다.
+          `split`은 루트 리프 split 과 부모가 여유 있는 일반 리프 split 흐름을 보여줍니다.
         </p>
       </section>
     </div>
@@ -693,6 +694,37 @@
         leaves: [
           { title: "left leaf", keys: [10, 20], values: [10, 20], next: "right leaf" },
           { title: "right leaf", keys: [30, insertKey], values: [30, insertKey], next: "NULL" }
+        ]
+      };
+    }
+
+    function getParentSplitTreeBefore() {
+      return {
+        root: {
+          title: "root",
+          isLeaf: false,
+          keys: [30],
+          pointers: ["child[0] → left leaf", "child[1] → right leaf"]
+        },
+        leaves: [
+          { title: "left leaf", keys: [10, 20], values: [10, 20], next: "right leaf" },
+          { title: "right leaf", keys: [30, 40, 50], values: [30, 40, 50], next: "NULL" }
+        ]
+      };
+    }
+
+    function getParentSplitTreeAfter(insertKey) {
+      return {
+        root: {
+          title: "root",
+          isLeaf: false,
+          keys: [30, 50],
+          pointers: ["child[0] → left leaf", "child[1] → middle leaf", "child[2] → right leaf"]
+        },
+        leaves: [
+          { title: "left leaf", keys: [10, 20], values: [10, 20], next: "middle leaf" },
+          { title: "middle leaf", keys: [30, 40], values: [30, 40], next: "right leaf" },
+          { title: "right leaf", keys: [50, insertKey], values: [50, insertKey], next: "NULL" }
         ]
       };
     }
@@ -828,6 +860,60 @@
     }
 
     function buildSplitScenario(key) {
+      if (key >= 55) {
+        const before = getParentSplitTreeBefore();
+        const after = getParentSplitTreeAfter(key);
+        const insertedKeys = sortedInsert(before.leaves[1].keys, key);
+
+        return {
+          mode: "split",
+          status: `key ${key} 를 넣는 순간 오른쪽 리프가 split 되고, 새 경계 key 50 이 부모에 추가됩니다.`,
+          statusKind: "hit",
+          steps: [
+            {
+              label: "1단계",
+              text: `현재 root 는 내부 노드이고 key 는 [${before.root.keys.join(", ")}] 입니다. ${key} 는 30 이상이므로 오른쪽 리프로 내려갑니다.`,
+              state: cloneState(before),
+              activeNodes: ["root"]
+            },
+            {
+              label: "2단계",
+              text: `오른쪽 리프의 현재 key 는 [${before.leaves[1].keys.join(", ")}] 입니다. 새 key ${key} 를 넣으면 임시 정렬 결과는 [${insertedKeys.join(", ")}] 가 되고, 한 리프에 다 들어가지 못합니다.`,
+              state: cloneState(before),
+              activeNodes: ["leaf-1"],
+              missNodes: ["leaf-1"],
+              splitSource: "leaf-1",
+              floatingKey: { value: key, x: 310, y: 0, scale: 1, opacity: 1 }
+            },
+            {
+              label: "3단계",
+              text: `split 후 기존 오른쪽 리프는 [30, 40], 새 오른쪽 리프는 [50, ${key}] 가 됩니다. 새 리프의 첫 key 50 을 부모로 올릴 준비를 합니다.`,
+              state: cloneState(after),
+              activeNodes: ["leaf-1", "leaf-2"],
+              focusKey: { node: "leaf-2", key: 50 },
+              promotedKey: { node: "root", key: 50 },
+              floatingKey: { value: 50, x: 235, y: 44, scale: 0.92, opacity: 0 }
+            },
+            {
+              label: "4단계",
+              text: `부모 root 에는 아직 자리가 있으므로 key 50 과 새 child 를 끼워 넣습니다. root key 는 [30, 50] 이 되고 child 는 세 개가 됩니다.`,
+              state: cloneState(after),
+              activeNodes: ["root", "leaf-0", "leaf-1", "leaf-2"],
+              hitNodes: ["root", "leaf-1", "leaf-2"],
+              promotedKey: { node: "root", key: 50 }
+            },
+            {
+              label: "5단계",
+              text: `리프 연결도 함께 유지됩니다. left leaf → middle leaf → right leaf 순서로 next 포인터가 이어지고, key ${key} 는 새 오른쪽 리프에서 search 됩니다.`,
+              state: cloneState(after),
+              activeNodes: ["leaf-2"],
+              hitNodes: ["leaf-2"],
+              focusKey: { node: "leaf-2", key }
+            }
+          ]
+        };
+      }
+
       const before = getSplitTreeBefore();
       const insertedKeys = sortedInsert(before.root.keys, key);
       const after = getSplitTreeAfter(key);
