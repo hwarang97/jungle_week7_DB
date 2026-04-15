@@ -1,5 +1,7 @@
 # B+ Tree Index Project
 
+![DB Performance Benchmark Main Page](image/main_page.png)
+
 메모리 기반 B+ Tree 인덱스를 C로 구현하고, SQL 처리기와 연동하여 대용량 데이터 검색 성능을 비교하는 프로젝트입니다.
 
 ## 1. 빌드 및 실행 방법
