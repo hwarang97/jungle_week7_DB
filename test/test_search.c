@@ -1,7 +1,12 @@
 #include <assert.h>
+#include <locale.h>
 #include <stdio.h>
 
 #include "../src/bptree.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 typedef void (*TestFn)(void);
 
@@ -9,6 +14,16 @@ typedef struct TestCase {
     const char *name;
     TestFn fn;
 } TestCase;
+
+static void configure_console_utf8(void)
+{
+    setlocale(LC_ALL, ".UTF-8");
+
+#ifdef _WIN32
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+}
 
 static BPTree *build_two_leaf_tree(int left_keys[2], void *left_values[2],
                                    int right_keys[2], void *right_values[2])
@@ -306,6 +321,8 @@ int main(void)
     };
     int total = (int)(sizeof(tests) / sizeof(tests[0]));
     int i;
+
+    configure_console_utf8();
 
     for (i = 0; i < total; i++) {
         run_test(&tests[i], i + 1, total);
