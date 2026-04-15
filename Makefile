@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -Wall -Wextra -O2 -I./include -I./src
+CFLAGS  = -Wall -Wextra -O2 -finput-charset=UTF-8 -fexec-charset=UTF-8 -I./include -I./src
 SRC_DIR = src
 TEST_DIR = tests
 BENCH_DIR = benchmark
@@ -33,6 +33,26 @@ STORAGE_TEST_TARGETS = test_storage_insert test_storage_delete test_storage_upda
 STORAGE_TEST_DEPS = $(SRC_DIR)/storage.c
 SELECT_RESULT_DEPS = $(SRC_DIR)/storage.c $(SRC_DIR)/parser.c
 
+ifeq ($(OS),Windows_NT)
+EXEEXT = .exe
+RUN_BPTREE_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_TARGET)$(EXEEXT)'"
+RUN_STRUCTURE_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(STRUCTURE_TEST_TARGET)$(EXEEXT)'"
+RUN_SEARCH_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SEARCH_TEST_TARGET)$(EXEEXT)'"
+RUN_BPTREE_BENCH_TARGET = powershell -NoProfile -Command "& '.\\$(BPTREE_BENCH_TARGET)$(EXEEXT)'"
+RUN_SQL_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TARGET)$(EXEEXT)'"
+RUN_SQL_TEST_TARGET = powershell -NoProfile -Command "& '.\\$(SQL_TEST_TARGET)$(EXEEXT)'"
+RUN_CURRENT_TARGET = powershell -NoProfile -Command "& '.\\$@$(EXEEXT)'"
+else
+EXEEXT =
+RUN_BPTREE_TARGET = ./$(BPTREE_TARGET)$(EXEEXT)
+RUN_STRUCTURE_TEST_TARGET = ./$(STRUCTURE_TEST_TARGET)$(EXEEXT)
+RUN_SEARCH_TEST_TARGET = ./$(SEARCH_TEST_TARGET)$(EXEEXT)
+RUN_BPTREE_BENCH_TARGET = ./$(BPTREE_BENCH_TARGET)$(EXEEXT)
+RUN_SQL_TARGET = ./$(SQL_TARGET)$(EXEEXT)
+RUN_SQL_TEST_TARGET = ./$(SQL_TEST_TARGET)$(EXEEXT)
+RUN_CURRENT_TARGET = ./$@$(EXEEXT)
+endif
+
 .PHONY: all clean test bench sqlparser test-sqlparser valgrind test_storage_all run json
 
 all: $(BPTREE_TARGET)
@@ -47,14 +67,14 @@ $(SEARCH_TEST_TARGET): test/test_search.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: $(TEST_TARGETS)
-	./$(STRUCTURE_TEST_TARGET)
-	./$(SEARCH_TEST_TARGET)
+	$(RUN_STRUCTURE_TEST_TARGET)
+	$(RUN_SEARCH_TEST_TARGET)
 
 $(BPTREE_BENCH_TARGET): $(BENCH_DIR)/bench_search.c $(SRC_DIR)/bptree.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 bench: $(BPTREE_BENCH_TARGET)
-	./$(BPTREE_BENCH_TARGET)
+	$(RUN_BPTREE_BENCH_TARGET)
 
 sqlparser: $(SQL_TARGET)
 
@@ -66,28 +86,28 @@ $(SQL_TEST_TARGET): $(SQL_TEST_SRCS)
 
 test_storage_insert: $(TEST_DIR)/test_storage_insert.c $(STORAGE_TEST_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
-	./$@
+	$(RUN_CURRENT_TARGET)
 
 test_storage_delete: $(TEST_DIR)/test_storage_delete.c $(STORAGE_TEST_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
-	./$@
+	$(RUN_CURRENT_TARGET)
 
 test_storage_update: $(TEST_DIR)/test_storage_update.c $(STORAGE_TEST_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
-	./$@
+	$(RUN_CURRENT_TARGET)
 
 test_storage_select_result: $(TEST_DIR)/test_storage_select_result.c $(SELECT_RESULT_DEPS)
 	$(CC) $(CFLAGS) -o $@ $^
-	./$@
+	$(RUN_CURRENT_TARGET)
 
 test_storage_all: $(STORAGE_TEST_TARGETS)
 
 test-sqlparser: $(SQL_TEST_TARGET)
-	./$(SQL_TEST_TARGET)
+	$(RUN_SQL_TEST_TARGET)
 	$(MAKE) test_storage_all
 
 valgrind: $(SQL_TARGET)
-	valgrind --leak-check=full --error-exitcode=1 ./$(SQL_TARGET) $(SQL)
+	valgrind --leak-check=full --error-exitcode=1 $(RUN_SQL_TARGET) $(SQL)
 
 clean:
 	rm -f $(BPTREE_TARGET) $(TEST_TARGETS) $(BPTREE_BENCH_TARGET)
@@ -96,7 +116,7 @@ clean:
 	rm -f data/schema/*.schema data/tables/*.csv data/tables/*.csv.tmp
 
 run: $(SQL_TARGET)
-	./$(SQL_TARGET) $(SQL)
+	$(RUN_SQL_TARGET) $(SQL)
 
 json: $(SQL_TARGET)
-	./$(SQL_TARGET) $(SQL) --json
+	$(RUN_SQL_TARGET) $(SQL) --json
